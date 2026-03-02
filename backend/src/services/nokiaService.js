@@ -31,29 +31,42 @@ let cachedToken = null;
 let tokenExpiry = null;
 
 async function getAccessToken() {
-
+  // if we already fetched a valid token, return it
   if (cachedToken && Date.now() < tokenExpiry) {
     return cachedToken;
   }
 
-  const response = await axios.get(
-    "https://network-as-code.p-eu.rapidapi.com/oauth2/v1/auth/clientcredentials",
-    {
-      headers: {
-        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-        "X-RapidAPI-Host": "network-as-code.nokia.rapidapi.com",
-      },
-      params: {
-        client_id: process.env.NOKIA_CLIENT_ID,
-        client_secret: process.env.NOKIA_CLIENT_SECRET,
-      },
-    }
-  );
+  // require credentials
+  const clientId = process.env.NOKIA_CLIENT_ID;
+  const clientSecret = process.env.NOKIA_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    console.warn("[TOKEN] Missing NOKIA_CLIENT_ID/NOKIA_CLIENT_SECRET in environment");
+    throw new Error("Missing Nokia client credentials");
+  }
 
-  cachedToken = response.data.access_token;
-  tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000;
+  try {
+    const response = await axios.get(
+      "https://network-as-code.p-eu.rapidapi.com/oauth2/v1/auth/clientcredentials",
+      {
+        headers: {
+          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+          "X-RapidAPI-Host": "network-as-code.nokia.rapidapi.com",
+        },
+        params: {
+          client_id: clientId,
+          client_secret: clientSecret,
+        },
+      }
+    );
 
-  return cachedToken;
+    console.log("[TOKEN SUCCESS] received token, expires in", response.data.expires_in);
+    cachedToken = response.data.access_token;
+    tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000;
+    return cachedToken;
+  } catch (err) {
+    console.error("[TOKEN ERROR]", err.response?.data || err.message);
+    throw err;
+  }
 }
 
 // SIM SWAP
@@ -90,6 +103,40 @@ export async function checkSimSwap(phone) {
   } catch (error) {
     console.error("[LIVE API] SIM Swap ERROR:", error.response?.data || error.message);
     return { recentSwap: false, isDemo: false, apiSuccess: false, error: error.message };
+  }
+}
+
+export async function checkLocationVerification(phone) {
+  if (process.env.USE_LIVE_NOKIA !== "true") {
+    console.log("[DEMO MODE] Location Verification");
+    return { isVerified: false, isDemo: true };
+  }
+
+  try {
+    const response = await axios.post(
+      "https://network-as-code.p-eu.rapidapi.com/device-status/device-roaming-status/v1/retrieve",
+      {
+        phoneNumber: phone,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+        },
+      }
+    );
+
+    console.log("[LIVE API] Location Verification SUCCESS:", response.data);
+    return {
+      isVerified: response.data.isVerified,
+      isDemo: false,
+      apiSuccess: true,
+    };
+
+  } catch (error) {
+    console.error("[LIVE API] Location Verification ERROR:", error.response?.data || error.message);
+    return { isVerified: false, isDemo: false, apiSuccess: false, error: error.message };
   }
 }
 
@@ -369,50 +416,50 @@ export async function checkLocationVerification(
 //LOCATION RETRIEVAL
 // LOCATION RETRIEVAL (CAMARA)
 
-export async function retrieveLocation(phone, { maxAge = 120, maxSurface } = {}) {
-  if (process.env.USE_LIVE_NOKIA !== "true") {
-    console.log("Using DEMO Location Retrieval mode");
-    // Demo simple (Barcelona). Ajusta si quieres.
-    return {
-      location: {
-        area: {
-          areaType: "CIRCLE",
-          center: { latitude: 41.3874, longitude: 2.1686 },
-          radius: 1500,
-        },
-        lastLocationTime: new Date().toISOString(),
-      },
-    };
-  }
+// export async function retrieveLocation(phone, { maxAge = 120, maxSurface } = {}) {
+//   if (process.env.USE_LIVE_NOKIA !== "true") {
+//     console.log("Using DEMO Location Retrieval mode");
+//     // Demo simple (Barcelona). Ajusta si quieres.
+//     return {
+//       location: {
+//         area: {
+//           areaType: "CIRCLE",
+//           center: { latitude: 41.3874, longitude: 2.1686 },
+//           radius: 1500,
+//         },
+//         lastLocationTime: new Date().toISOString(),
+//       },
+//     };
+//   }
 
-  // En algunos hubs esto puede ser v0, v0.5, vwip, etc.
-  const apiVersion = process.env.LOCATION_RETRIEVAL_VERSION || "v0";
+//   // En algunos hubs esto puede ser v0, v0.5, vwip, etc.
+//   const apiVersion = process.env.LOCATION_RETRIEVAL_VERSION || "v0";
 
-  try {
-    const response = await axios.post(
-      `https://network-as-code.p-eu.rapidapi.com/location-retrieval/${apiVersion}/retrieve`,
-      {
-        device: { phoneNumber: phone }, // CAMARA: E.164 con '+'
-        maxAge,                          // segundos (0 = fresh), opcional
-        ...(maxSurface ? { maxSurface } : {}), // m², opcional
-      },
-      {
-        headers: {
-          "Content-Type": "application/json",
-          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
-          "X-Correlator": crypto.randomUUID(),
-        },
-      }
-    );
+//   try {
+//     const response = await axios.post(
+//       "https://network-as-code.p-eu.rapidapi.com/location-retrieval/${apiVersion}/retrieve",
+//       {
+//         device: { phoneNumber: phone }, // CAMARA: E.164 con '+'
+//         maxAge,                          // segundos (0 = fresh), opcional
+//         ...(maxSurface ? { maxSurface } : {}), // m², opcional
+//       },
+//       {
+//         headers: {
+//           "Content-Type": "application/json",
+//           "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+//           "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+//           "X-Correlator": crypto.randomUUID(),
+//         },
+//       }
+//     );
 
-    // Devuelve el payload tal cual (incluye area circle/polygon + lastLocationTime)
-    return { location: response.data };
-  } catch (error) {
-    console.error(
-      "Location Retrieval API error:",
-      error.response?.data || error.message
-    );
-    return { location: null };
-  }
-}
+//     // Devuelve el payload tal cual (incluye area circle/polygon + lastLocationTime)
+//     return { location: response.data };
+//   } catch (error) {
+//     console.error(
+//       "Location Retrieval API error:",
+//       error.response?.data || error.message
+//     );
+//     return { location: null };
+//   }
+// }
