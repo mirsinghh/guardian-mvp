@@ -20,7 +20,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 20;
+  const itemsPerPage = 10;
 
   const checkGuardian = async () => {
     setLoading(true);
@@ -112,7 +112,146 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-6 py-2">
+        {/* ================= USER MODE ================= */}
+        {mode === "user" && (
+          <div className="flex flex-col items-center justify-start px-6 pt-8 pb-10">
+            
+            <h2 className="text-4xl md:text-5xl font-semibold mb-3 text-gray-900">
+              Security Verification
+            </h2>
+
+            <p className="text-gray-600 mb-4 text-md md:text-lg max-w-md leading-relaxed text-center font-light">
+              Verify telecom security before performing an important action.
+            </p>
+
+            {!result && (
+              <button
+                onClick={checkGuardian}
+                disabled={loading}
+                className="w-full max-w-md py-6 text-xl md:text-2xl font-semibold rounded-2xl 
+                bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 
+                transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-3"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                    Checking...
+                  </>
+                ) : (
+                  "Start Verification"
+                )}
+              </button>
+            )}
+
+            {result && (
+              <div className="mt-6 max-w-md w-full bg-white border border-gray-200 rounded-3xl p-8 md:p-10 shadow-lg">
+                
+                <div
+                  className={`text-2xl md:text-3xl font-semibold mb-4 ${
+                    result.trustScore >= 75
+                      ? "text-green-600"
+                      : result.trustScore >= 50
+                      ? "text-amber-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  {result.trustScore >= 75
+                    ? "Secure"
+                    : result.trustScore >= 50
+                    ? "Review Recommended"
+                    : "High Risk"}
+                </div>
+
+                {/* SCORE + ALERT ICON */}
+                <div className="flex items-center justify-center gap-4 mb-4">
+                  <div className="text-[96px] md:text-[110px] font-semibold leading-none text-gray-900">
+                    {result.trustScore}
+                  </div>
+
+                  {result.trustScore < 50 && (
+                    <AlertOctagon className="w-14 h-14 text-red-500 animate-pulse" />
+                  )}
+                </div>
+
+                <div className="text-gray-500 text-lg mb-6 font-light">
+                  Trust Score (0 – 100)
+                </div>
+
+                {/* TRAFFIC LIGHT MESSAGE */}
+                <div className="mb-6">
+                  {result.trustScore >= 75 && (
+                    <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-green-50 border border-green-200">
+                      <CheckCircle2 className="w-6 h-6 text-green-600" />
+                      <span className="text-lg font-medium text-green-800">
+                        All good. You can continue.
+                      </span>
+                    </div>
+                  )}
+
+                  {result.trustScore >= 50 && result.trustScore < 75 && (
+                    <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
+                      <AlertTriangle className="w-6 h-6 text-amber-600" />
+                      <span className="text-lg font-medium text-amber-900">
+                        Please review before continuing.
+                      </span>
+                    </div>
+                  )}
+
+                  {result.trustScore < 50 && (
+                    <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-50 border border-red-200">
+                      <ShieldAlert className="w-6 h-6 text-red-600" />
+                      <span className="text-lg font-medium text-red-800">
+                        High risk. Do not perform the action.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* PROGRESS BAR */}
+                <div className="h-4 bg-gray-200 rounded-full overflow-hidden mb-6">
+                  <div
+                    className={`h-full transition-all duration-700 ${
+                      result.trustScore >= 75
+                        ? "bg-green-500"
+                        : result.trustScore >= 50
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                    style={{ width: `${result.trustScore}%` }}
+                  ></div>
+                </div>
+
+                <button
+                  onClick={checkGuardian}
+                  disabled={loading}
+                  className="w-full py-5 text-lg md:text-xl rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      Checking...
+                    </>
+                  ) : (
+                    "Verify Again"
+                  )}
+                </button>
+
+                <button
+                  onClick={resetCheck}
+                  className="w-full mt-3 py-4 text-base rounded-2xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all font-medium"
+                >
+                  Clear Result
+                </button>
+
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ================= DASHBOARD MODE ================= */}
+        {mode === "dashboard" && (
+        <>
         <div className="grid gap-6 lg:grid-cols-3">
           {/* ACTIONS PANEL */}
           <section className="lg:col-span-1 space-y-4">
@@ -505,6 +644,22 @@ function App() {
               </div>
             )}
           </div>
+        )}
+
+        {/* JSON/RAW DATA SECTION */}
+        {result && (
+          <div className="mt-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h3 className="font-medium text-gray-900">Raw API Response (Debug)</h3>
+            </div>
+            <div className="p-6">
+              <pre className="text-xs text-gray-700 overflow-x-auto bg-gray-50 p-4 rounded-lg border border-gray-200">
+                {JSON.stringify(result, null, 2)}
+              </pre>
+            </div>
+          </div>
+        )}
+        </>
         )}
       </main>
     </div>
