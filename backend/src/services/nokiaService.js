@@ -139,3 +139,74 @@ export async function checkNumberVerification(phone) {
   }
 }
 
+// LOCATION VERIFICATION
+
+export async function checkLocationVerification(
+  phone,
+  { latitude, longitude, radius = 1500, maxAge = 120 } = {}
+) {
+  // DEMO mode si no hi ha live
+  if (process.env.USE_LIVE_NOKIA !== "true") {
+    console.log("Using DEMO Location Verification mode");
+    // Per demo: si la lat és 0, simulem frau (FALSE). Si no, TRUE.
+    const isFraudDemo = latitude === 0 && longitude === 0;
+
+    return {
+      verificationResult: isFraudDemo ? "FALSE" : "TRUE", // "TRUE" | "FALSE" | "PARTIAL"
+      matchRate: isFraudDemo ? 10 : 100,
+      lastLocationTime: new Date().toISOString(),
+      demo: true,
+    };
+  }
+
+  // Si és live però falta info, no petem: retornem null i ja
+  if (typeof latitude !== "number" || typeof longitude !== "number") {
+    return {
+      verificationResult: null,
+      matchRate: null,
+      lastLocationTime: null,
+      error: "Missing latitude/longitude",
+    };
+  }
+
+  try {
+    const response = await axios.post(
+      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/location-verification/location-verification/v0.3/verify",
+      {
+        device: { phoneNumber: phone },
+        area: {
+          areaType: "CIRCLE",
+          center: { latitude, longitude },
+          radius,
+        },
+        maxAge,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+          "X-Correlator": crypto.randomUUID(),
+        },
+      }
+    );
+
+    return {
+      verificationResult: response.data.verificationResult ?? null,
+      matchRate: response.data.matchRate ?? null,
+      lastLocationTime: response.data.lastLocationTime ?? null,
+    };
+  } catch (error) {
+    console.error(
+      "Location Verification API error:",
+      error.response?.data || error.message
+    );
+    return {
+      verificationResult: null,
+      matchRate: null,
+      lastLocationTime: null,
+      error: error.response?.data || error.message,
+    };
+  }
+}
+
