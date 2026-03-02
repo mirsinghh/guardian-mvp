@@ -138,4 +138,34 @@ router.get("/history", async (req, res) => {
   }
 });
 
+// basic location verification endpoint
+router.post("/verify-location", async (req, res) => {
+  try {
+    const { latitude, longitude } = req.body;
+
+    if (latitude == null || longitude == null) {
+      return res.status(400).json({ error: "Missing coordinates" });
+    }
+
+    // rudimentary check - in a real app you might call a geo service
+    let valid = true;
+    let message = "Location looks OK";
+
+    if (
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      valid = false;
+      message = "Coordinates out of range";
+    }
+
+    res.json({ valid, message, latitude, longitude });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Location check failed" });
+  }
+});
+
 export default router;

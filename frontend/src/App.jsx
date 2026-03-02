@@ -6,6 +6,7 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [location, setLocation] = useState(null);
 
   const checkGuardian = async () => {
     setLoading(true);
@@ -48,6 +49,32 @@ function App() {
       console.error(error);
       alert("Error loading history");
     }
+  };
+
+  const verifyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await axios.post(
+            "http://localhost:8080/guardian/verify-location",
+            { latitude, longitude }
+          );
+          setLocation({ coords: { latitude, longitude }, server: res.data });
+        } catch (error) {
+          console.error(error);
+          alert("Error verifying location");
+        }
+      },
+      (err) => {
+        alert("Unable to get location: " + err.message);
+      }
+    );
   };
 
   const statusBadge = (status) => {
@@ -120,6 +147,13 @@ function App() {
               >
                 Load History
               </button>
+
+              <button
+                onClick={verifyLocation}
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold hover:bg-slate-50"
+              >
+                Verify Location
+              </button>
             </div>
           </section>
 
@@ -181,6 +215,22 @@ function App() {
                     </pre>
                   </div>
 
+                  {location && (
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold text-slate-700 mb-1">
+                        Location Check
+                      </p>
+                      <p className="text-xs text-slate-600">
+                       coords: {location.coords.latitude.toFixed(6)}, {location.coords.longitude.toFixed(6)}
+                      </p>
+                      <p className="text-xs text-slate-500 mb-2">
+                        Server response
+                      </p>
+                      <pre className="bg-slate-50 p-4 rounded-xl text-xs overflow-auto">
+                        {JSON.stringify(location.server, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
