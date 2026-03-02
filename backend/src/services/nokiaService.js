@@ -390,7 +390,7 @@ export async function retrieveLocation(phone, { maxAge = 120, maxSurface } = {})
 
   try {
     const response = await axios.post(
-      `https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/location-retrieval/location-retrieval/${apiVersion}/retrieve`,
+      `https://network-as-code.p-eu.rapidapi.com/location-retrieval/${apiVersion}/retrieve`,
       {
         device: { phoneNumber: phone }, // CAMARA: E.164 con '+'
         maxAge,                          // segundos (0 = fresh), opcional

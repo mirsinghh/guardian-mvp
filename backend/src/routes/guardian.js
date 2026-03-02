@@ -6,6 +6,9 @@ import { generateExplanation } from "../services/aiService.js";
 import {
   checkSimSwap,
   checkKYC,
+  checkNumberVerification,
+  getDeviceLocation,
+  checkLocationVerification,
 } from "../services/nokiaService.js";
 
 const router = express.Router();
@@ -26,6 +29,28 @@ router.post("/check", async (req, res) => {
       birthDate,
     });
 
+    // NUMBER VERIFICATION
+    const number = await checkNumberVerification(phone);
+
+    // DEVICE LOCATION (try to get device location from operator)
+    const deviceLocation = await getDeviceLocation(phone);
+
+    // Build location to verify: prefer coordinates passed in body, otherwise use deviceLocation
+    const locationToVerify = {
+      latitude: req.body.latitude ?? deviceLocation?.latitude,
+      longitude: req.body.longitude ?? deviceLocation?.longitude,
+      radius: req.body.radius ?? 1500,
+      maxAge: req.body.maxAge ?? 120,
+    };
+
+    const locationVerification = await checkLocationVerification(
+      phone,
+      locationToVerify
+    );
+
+    const locationVerified =
+      locationVerification?.verificationResult === "TRUE" ||
+      locationVerification?.verificationResult === "PARTIAL";
     /* ===== TRUST SCORE ===== */
     const { score, status, riskFactors, actionAllowed } =
       calculateTrustScore({
@@ -48,13 +73,15 @@ router.post("/check", async (req, res) => {
     await pool.query(
       `
       INSERT INTO risk_checks 
-      (id, sim_swap_result, kyc_result, trust_score, status, risk_factors)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (id, sim_swap_result, kyc_result, number_verification_result, location_verification_result, trust_score, status, risk_factors)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       `,
       [
         id,
         sim.recentSwap,
         kyc.match,
+        number.verified,
+        locationVerified,
         score,
         status,
         JSON.stringify(riskFactors),
@@ -62,12 +89,21 @@ router.post("/check", async (req, res) => {
     );
 
     const isLiveMode = process.env.USE_LIVE_NOKIA === "true";
-    const apiCallsSuccessful = [sim.apiSuccess, kyc.apiSuccess]
-      .filter(Boolean).length;
+    const apiCallsSuccessful = [
+      sim.apiSuccess,
+      kyc.apiSuccess,
+      number.apiSuccess,
+      deviceLocation.apiSuccess,
+      locationVerification.apiSuccess,
+    ].filter(Boolean).length;
 
     res.json({
       sim,
       kyc,
+      number,
+      deviceLocation,
+      locationVerification,
+      locationVerified,
       trustScore: score,
       status,
       riskFactors,
@@ -77,7 +113,7 @@ router.post("/check", async (req, res) => {
         mode: isLiveMode ? "LIVE" : "DEMO",
         timestamp: new Date().toISOString(),
         apiCallsSuccessful: isLiveMode ? apiCallsSuccessful : null,
-        totalAPICalls: isLiveMode ? 2 : 0,
+        totalAPICalls: isLiveMode ? 5 : 0,
       },
     });
 
