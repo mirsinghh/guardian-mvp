@@ -8,3 +8,5 @@ ADD COLUMN IF NOT EXISTS location_verification_result BOOLEAN;
 UPDATE risk_checks 
 SET location_verification_result = true 
 WHERE location_verification_result IS NULL;
+ALTER TABLE risk_checks
+ADD COLUMN risk_factors JSONB;
