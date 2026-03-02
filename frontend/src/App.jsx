@@ -6,8 +6,9 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [location, setLocation] = useState(null);
 
-  const checkGuardian = async () => {
+  const checkGuardian = async (coords = null) => {
     setLoading(true);
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
@@ -15,7 +16,8 @@ function App() {
         firstName: "John",
         lastName: "Doe",
         birthDate: "1990-01-01",
-        // latitude and longitude will be retrieved from device
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
       });
       setResult(res.data);
     } catch (error) {
@@ -33,7 +35,6 @@ function App() {
           simSwap: true,
           kycMismatch: false,
           numberVerified: true,
-          locationMismatch: false,
         }
       );
       setResult(res.data);
@@ -55,16 +56,34 @@ function App() {
     }
   };
 
+  const verifyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
+        setLocation({ latitude, longitude });
+        checkGuardian({ latitude, longitude });
+      },
+      (err) => {
+        alert("Unable to get location: " + err.message);
+      }
+    );
+  };
+
   const statusBadge = (status) => {
     const base =
       "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset";
     if (!status) return `${base} bg-slate-50 text-slate-700 ring-slate-200`;
     const s = String(status).toLowerCase();
-    if (s.includes("ok") || s.includes("safe") || s.includes("clear"))
+    if (s.includes("normal"))
       return `${base} bg-emerald-50 text-emerald-700 ring-emerald-200`;
-    if (s.includes("warn") || s.includes("review"))
+    if (s.includes("warning"))
       return `${base} bg-amber-50 text-amber-700 ring-amber-200`;
-    if (s.includes("risk") || s.includes("fail") || s.includes("blocked"))
+    if (s.includes("protection"))
       return `${base} bg-rose-50 text-rose-700 ring-rose-200`;
     return `${base} bg-slate-50 text-slate-700 ring-slate-200`;
   };
@@ -101,27 +120,33 @@ function App() {
         <div className="grid gap-6 lg:grid-cols-3">
 
           {/* ACTIONS */}
-          <section className="lg:col-span-1">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
-
+          <section>
+            <div className="rounded-2xl border bg-white p-6 space-y-3">
               <button
-                onClick={checkGuardian}
+                onClick={() => checkGuardian()}
                 disabled={loading}
-                className="w-full rounded-xl bg-slate-900 text-white py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:bg-slate-300"
+                className="w-full rounded-xl bg-slate-900 text-white py-2.5"
               >
                 {loading ? "Checking..." : "Check User"}
               </button>
 
               <button
                 onClick={simulateSimSwap}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold hover:bg-slate-50"
+                className="w-full rounded-xl border py-2.5"
               >
                 Simulate SIM Swap
               </button>
 
               <button
+                onClick={verifyLocation}
+                className="w-full rounded-xl border py-2.5"
+              >
+                Verify Location & Check
+              </button>
+
+              <button
                 onClick={loadHistory}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold hover:bg-slate-50"
+                className="w-full rounded-xl border py-2.5"
               >
                 Load History
               </button>
@@ -130,13 +155,10 @@ function App() {
 
           {/* RESULTS */}
           <section className="lg:col-span-2">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="rounded-2xl border bg-white shadow-sm">
 
-              <div className="flex justify-between border-b border-slate-200 px-6 py-5">
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Results
-                </h2>
-
+              <div className="flex justify-between border-b px-6 py-5">
+                <h2 className="text-sm font-semibold">Results</h2>
                 <span className={statusBadge(result?.status)}>
                   {result ? `Status: ${result.status}` : "No data yet"}
                 </span>
@@ -149,7 +171,6 @@ function App() {
               ) : (
                 <div className="px-6 py-6 space-y-6">
 
-                  {/* Trust Score */}
                   <div>
                     <p className="text-sm text-slate-600">Trust Score</p>
                     <p className="text-3xl font-semibold">
@@ -157,33 +178,20 @@ function App() {
                     </p>
                   </div>
 
-                  {/* Signals */}
                   <div className="space-y-3">
                     {metricChip("SIM Swap", result.sim?.recentSwap, false)}
                     {metricChip("KYC Match", result.kyc?.match, true)}
                     {metricChip("Number Verified", result.number?.verified, true)}
-                    {metricChip("Location Verified", result.locationVerified, true)}
+                    {metricChip(
+                      "Location Verified",
+                      result.location?.verificationResult === "TRUE",
+                      true
+                    )}
                   </div>
 
-                  {/* Device Location */}
-                  {result.deviceLocation && (
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700 mb-2">
-                        Device Location
-                      </p>
-                      <div className="bg-slate-50 p-4 rounded-xl text-xs space-y-1">
-                        <p><strong>Latitude:</strong> {result.deviceLocation.latitude ?? 'N/A'}</p>
-                        <p><strong>Longitude:</strong> {result.deviceLocation.longitude ?? 'N/A'}</p>
-                        <p><strong>Accuracy:</strong> {result.deviceLocation.accuracy ?? 'N/A'} meters</p>
-                        {result.deviceLocation.demo && <p className="text-amber-600"><strong>Mode:</strong> DEMO</p>}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* AI Explanation */}
                   {result.explanation && (
                     <div>
-                      <p className="text-sm font-semibold text-slate-700 mb-2">
+                      <p className="text-sm font-semibold mb-2">
                         AI Security Explanation
                       </p>
                       <pre className="bg-slate-50 p-4 rounded-xl text-xs whitespace-pre-wrap">
@@ -192,58 +200,41 @@ function App() {
                     </div>
                   )}
 
-                  {/* Raw JSON */}
-                  <div>
-                    <p className="text-xs text-slate-500 mb-2">
-                      Raw response
-                    </p>
-                    <pre className="bg-slate-50 p-4 rounded-xl text-xs overflow-auto">
-                      {JSON.stringify(result, null, 2)}
-                    </pre>
-                  </div>
-
                 </div>
               )}
             </div>
           </section>
         </div>
 
-        {/* HISTORY TABLE */}
+        {/* HISTORY */}
         {history.length > 0 && (
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">
+          <div className="mt-10 rounded-2xl border bg-white shadow-sm p-6">
+            <h2 className="text-sm font-semibold mb-4">
               Risk Check History
             </h2>
 
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left border-b">
-                  <tr>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Score</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2">SIM Swap</th>
-                    <th className="pb-2">Location</th>
+            <table className="w-full text-sm">
+              <thead className="border-b">
+                <tr>
+                  <th>Date</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>SIM</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((item) => (
+                  <tr key={item.id} className="border-b">
+                    <td>{new Date(item.created_at).toLocaleString()}</td>
+                    <td>{item.trust_score}</td>
+                    <td>{item.status}</td>
+                    <td>{item.sim_swap_result ? "YES" : "NO"}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {history.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-2">
-                        {new Date(item.created_at).toLocaleString()}
-                      </td>
-                      <td>{item.trust_score}</td>
-                      <td>{item.status}</td>
-                      <td>{item.sim_swap_result ? "YES" : "NO"}</td>
-                      <td>{item.location_verification_result ? "✓" : "✗"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
-
       </main>
     </div>
   );

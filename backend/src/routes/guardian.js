@@ -13,10 +13,11 @@ import {
 
 const router = express.Router();
 
+/* ===============================
+   MAIN CHECK ENDPOINT
+================================ */
 router.post("/check", async (req, res) => {
   try {
-    // const { phone, latitude, longitude, radius, maxAge } = req.body;
-
     const {
       phone,
       firstName,
@@ -28,31 +29,37 @@ router.post("/check", async (req, res) => {
       maxAge,
     } = req.body;
 
+    /* ===== TELECOM SIGNALS ===== */
     const sim = await checkSimSwap(phone);
+
     const kyc = await checkKYC(phone, {
       firstName,
       lastName,
       birthDate,
     });
+
     const number = await checkNumberVerification(phone);
-    
-    // Get device location
+
+    /* ===== DEVICE LOCATION ===== */
     const deviceLocation = await getDeviceLocation(phone);
-    
-    // Verify location if coordinates provided, otherwise use retrieved location
+
     const locationToVerify = {
-      latitude: latitude ?? deviceLocation.latitude,
-      longitude: longitude ?? deviceLocation.longitude,
+      latitude: latitude ?? deviceLocation?.latitude,
+      longitude: longitude ?? deviceLocation?.longitude,
       radius: radius ?? 1500,
       maxAge: maxAge ?? 120,
     };
-    
-    const locationVerification = await checkLocationVerification(phone, locationToVerify);
-    
-    // Determine if location is verified based on result
-    const locationVerified = locationVerification.verificationResult === "TRUE" || 
-                            locationVerification.verificationResult === "PARTIAL";
-    
+
+    const locationVerification = await checkLocationVerification(
+      phone,
+      locationToVerify
+    );
+
+    const locationVerified =
+      locationVerification?.verificationResult === "TRUE" ||
+      locationVerification?.verificationResult === "PARTIAL";
+
+    /* ===== TRUST SCORE ===== */
     const { score, status } = calculateTrustScore({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
@@ -69,6 +76,7 @@ router.post("/check", async (req, res) => {
       status,
     });
 
+    /* ===== DB SAVE ===== */
     const id = uuidv4();
 
     await pool.query(
@@ -88,6 +96,7 @@ router.post("/check", async (req, res) => {
       ]
     );
 
+    /* ===== RESPONSE ===== */
     res.json({
       sim,
       kyc,
@@ -106,9 +115,17 @@ router.post("/check", async (req, res) => {
   }
 });
 
+/* ===============================
+   SIMULATION
+================================ */
 router.post("/simulate", async (req, res) => {
   try {
-    const { simSwap, kycMismatch, numberVerified, locationMismatch } = req.body;
+    const {
+      simSwap,
+      kycMismatch,
+      numberVerified,
+      locationMismatch,
+    } = req.body;
 
     const locationVerified = !locationMismatch;
 
@@ -164,12 +181,14 @@ router.post("/simulate", async (req, res) => {
   }
 });
 
+/* ===============================
+   HISTORY
+================================ */
 router.get("/history", async (req, res) => {
   try {
     const result = await pool.query(
       "SELECT * FROM risk_checks ORDER BY created_at DESC"
     );
-
     res.json(result.rows);
   } catch (error) {
     console.error(error);
