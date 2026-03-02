@@ -7,18 +7,25 @@ import {
   checkSimSwap,
   checkKYC,
   checkNumberVerification,
+  checkLocationVerification, //nuevo
 } from "../services/nokiaService.js";
 
 const router = express.Router();
 
 router.post("/check", async (req, res) => {
   try {
-    const { phone } = req.body;
-
+    const { phone, latitude, longitude, radius, maxAge } = req.body;
+    //nuevo
     const sim = await checkSimSwap(phone);
     const kyc = await checkKYC(phone);
     const number = await checkNumberVerification(phone);
-
+   //nuevo
+    const location = await checkLocationVerification(phone, {
+      latitude,
+      longitude,
+      radius,
+      maxAge,
+    });
     const { score, status } = calculateTrustScore({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
@@ -55,6 +62,7 @@ router.post("/check", async (req, res) => {
       sim,
       kyc,
       number,
+      location,
       trustScore: score,
       status,
       explanation,
