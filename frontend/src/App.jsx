@@ -1,23 +1,18 @@
 import { useState } from "react";
 import axios from "axios";
 import "./index.css";
+import { TEST_USER, DEMO_SCENARIOS } from "./constants";
 
 function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
-  const [location, setLocation] = useState(null);
 
-  const checkGuardian = async (coords = null) => {
+  const checkGuardian = async () => {
     setLoading(true);
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
-        phone: "+99999991000",
-        firstName: "Federica",
-        lastName: "Sanchez Arjona",
-        birthDate: "1978-08-22",
-        latitude: coords?.latitude,
-        longitude: coords?.longitude,
+        ...TEST_USER, // Usa datos consistentes
       });
       setResult(res.data);
     } catch (error) {
@@ -27,21 +22,18 @@ function App() {
     setLoading(false);
   };
 
-  const simulateSimSwap = async () => {
+  const runSimulation = async (scenario) => {
+    setLoading(true);
     try {
-      const res = await axios.post(
-        "http://localhost:8080/guardian/simulate",
-        {
-          simSwap: true,
-          kycMismatch: false,
-          numberVerified: true,
-        }
-      );
+      const res = await axios.post("http://localhost:8080/guardian/simulate", {
+        scenario, // Envía: "safe", "simswap", "kyc", "maximum"
+      });
       setResult(res.data);
     } catch (error) {
       console.error(error);
-      alert("Error connecting to backend");
+      alert("Simulation failed");
     }
+    setLoading(false);
   };
 
   const loadHistory = async () => {
@@ -103,22 +95,39 @@ function App() {
 
           {/* ACTIONS */}
           <section className="lg:col-span-1">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-3">
+            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
+              
+              <h3 className="text-sm font-semibold text-slate-900">
+                Verificación Real
+              </h3>
 
               <button
                 onClick={checkGuardian}
                 disabled={loading}
                 className="w-full rounded-xl bg-slate-900 text-white py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:bg-slate-300"
               >
-                {loading ? "Checking..." : "Check User"}
+                {loading ? "Checking..." : `Check: ${TEST_USER.firstName}`}
               </button>
 
-              <button
-                onClick={simulateSimSwap}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold hover:bg-slate-50"
-              >
-                Simulate SIM Swap
-              </button>
+              <div className="pt-2 border-t border-slate-200">
+                <h3 className="text-sm font-semibold text-slate-900 mb-3">
+                  Simulaciones (Demo)
+                </h3>
+                
+                <div className="space-y-2">
+                  {Object.values(DEMO_SCENARIOS).map((scenario) => (
+                    <button
+                      key={scenario.scenario}
+                      onClick={() => runSimulation(scenario.scenario)}
+                      disabled={loading}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm hover:bg-slate-50 disabled:opacity-50"
+                    >
+                      <div className="font-medium">{scenario.label}</div>
+                      <div className="text-xs text-slate-500">{scenario.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
 
               <button
                 onClick={loadHistory}

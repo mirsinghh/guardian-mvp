@@ -1,48 +1,66 @@
-export function generateExplanation({
+import "dotenv/config";
+import axios from "axios";
+
+const GEMINI_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
+
+export async function generateExplanation({
   simSwap,
   kycMatch,
-  numberVerified,
-  locationVerified,
   score,
   status,
+  riskFactors,
+  context,
 }) {
-  let reasons = [];
+  try {
+    const prompt = `
+You are a telecom fraud prevention analyst specialized in protecting elderly users.
 
-  if (simSwap) {
-    reasons.push(
-      "A recent SIM swap was detected, which is a strong indicator of potential identity fraud. "
-    );
-  }
+Context: ${context}
 
-  if (!kycMatch) {
-    reasons.push(
-      "The KYC verification did not match the expected user identity."
-    );
-  }
+Telecom Signals:
+- Recent SIM Swap: ${simSwap}
+- KYC Match: ${kycMatch}
+- Risk Factors: ${riskFactors?.join(", ") || "None"}
+- Trust Score: ${score}
+- Status: ${status}
 
-  if (!numberVerified) {
-    reasons.push(
-      "The phone number could not be verified successfully."
-    );
-  }
+Explain clearly:
+1. What happened technically.
+2. Why this is dangerous for an elderly user.
+3. What action should be taken immediately.
 
-  if (locationVerified === false) {
-    reasons.push(
-      "The device location verification failed. The device may not be in the expected location, indicating potential unauthorized access."
-    );
-  }
-
-  if (reasons.length === 0) {
-    return "All security checks passed. The user's digital identity appears safe and consistent.";
-  }
-
-  return `
-Security analysis completed.
-
-${reasons.join("\n\n")}
-
-Final Trust Score: ${score}.
-System status: ${status}.
-Appropriate safeguards have been applied.
+Keep the explanation concise and professional.
 `;
+
+    const response = await axios.post(
+      GEMINI_URL,
+      {
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-goog-api-key": process.env.GEMINI_API_KEY,
+        },
+      }
+    );
+
+    const text =
+      response.data.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "No explanation generated.";
+
+    return text;
+
+  } catch (error) {
+    console.error(
+      "Gemini API ERROR:",
+      error.response?.data || error.message
+    );
+    return "AI explanation unavailable.";
+  }
 }
