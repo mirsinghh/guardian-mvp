@@ -21,16 +21,72 @@ const router = express.Router();
 ================================ */
 router.post("/check", async (req, res) => {
   try {
-    const { phone, firstName, lastName, birthDate } = req.body;
+    const { phone, firstName, lastName, birthDate, actionType } = req.body;
 
     console.log(`\n🔍 Guardian Check iniciado para: ${phone}`);
+    console.log(`   📌 Tipo de acción: ${actionType || "genérica"}`);
+
+    const timestamp = new Date().toISOString();
 
     /* ===== STEP 1: TELECOM SIGNALS ===== */
     const sim = await checkSimSwap(phone);
     const kyc = await checkKYC(phone, { firstName, lastName, birthDate });
+    // Number Verification: Solo en Demo Scenarios, no en check de JOHN
 
     console.log(`   SIM Swap: ${sim.recentSwap ? "⚠️ DETECTADO" : "✅ OK"}`);
     console.log(`   KYC Match: ${kyc.match ? "✅ OK" : "⚠️ NO COINCIDE"}`);
+
+    // Registrar llamadas API para trazabilidad (sin referencias circulares)
+    const apiCalls = {
+      simSwap: {
+        request: {
+          method: "POST",
+          url: "https://network-as-code.p-eu.rapidapi.com/sim-swap/v0/retrieve-date",
+          headers: {
+            "Content-Type": "application/json",
+            "X-RapidAPI-Key": "***hidden***",
+            "X-RapidAPI-Host": "network-as-code.p-eu.rapidapi.com"
+          },
+          body: { phoneNumber: phone }
+        },
+        response: {
+          status: sim.apiSuccess ? 200 : (sim.isDemo ? 200 : 500),
+          data: sim.isDemo 
+            ? { swapped: false, demo: true }
+            : { swapped: sim.recentSwap },
+          timestamp: timestamp
+        }
+      },
+      kyc: {
+        request: {
+          method: "POST",
+          url: "https://network-as-code.p-eu.rapidapi.com/kyc-match/v0.3/match",
+          headers: {
+            "Content-Type": "application/json",
+            "X-RapidAPI-Key": "***hidden***",
+            "X-RapidAPI-Host": "network-as-code.p-eu.rapidapi.com"
+          },
+          body: {
+            phoneNumber: phone,
+            givenName: firstName,
+            familyName: lastName,
+            birthdate: birthDate
+          }
+        },
+        response: {
+          status: kyc.apiSuccess ? 200 : (kyc.isDemo ? 200 : 500),
+          data: kyc.isDemo
+            ? { matchResult: "false", demo: true }
+            : {
+                matchResult: kyc.match ? "true" : "false",
+                matchDetails: kyc.details || {}
+              },
+          timestamp: timestamp
+        }
+      },
+      totalCalls: 2,
+      successfulCalls: [sim.apiSuccess, kyc.apiSuccess].filter(Boolean).length
+    };
 
     /* ===== STEP 2: TRUST SCORE ===== */
     const { score, status, riskFactors, actionAllowed } = calculateTrustScore({
@@ -55,6 +111,7 @@ router.post("/check", async (req, res) => {
           firstName,
           lastName,
           birthDate,
+          actionType, // 👈 NUEVO: Contexto de acción sensible
         });
 
         // MCP devuelve análisis estructurado
@@ -65,6 +122,7 @@ router.post("/check", async (req, res) => {
           status: mcpResult.status,
           riskFactors: mcpResult.riskFactors,
           context: "elderly_protection",
+          actionType, // 👈 NUEVO: Para explicaciones contextualizadas
         });
 
         mcpUsed = true;
@@ -79,6 +137,7 @@ router.post("/check", async (req, res) => {
           status,
           riskFactors,
           context: "elderly_protection",
+          actionType,
         });
       }
     } else {
@@ -92,6 +151,7 @@ router.post("/check", async (req, res) => {
             status,
             riskFactors,
             context: "elderly_protection",
+            actionType,
           });
     }
 
@@ -106,13 +166,28 @@ router.post("/check", async (req, res) => {
 
     /* ===== STEP 5: RESPONSE ===== */
     const isLiveMode = process.env.USE_LIVE_NOKIA === "true";
-    const apiCallsSuccessful = [sim.apiSuccess, kyc.apiSuccess].filter(Boolean).length;
 
     console.log(`   ✅ Check completado\n`);
 
+    // Limpiar objetos sim, kyc y numberVerification para evitar referencias circulares
+    const cleanSim = {
+      recentSwap: sim.recentSwap,
+      apiSuccess: sim.apiSuccess,
+      isDemo: sim.isDemo,
+      lastSwapDate: sim.lastSwapDate || null
+    };
+
+    const cleanKyc = {
+      match: kyc.match,
+      apiSuccess: kyc.apiSuccess,
+      isDemo: kyc.isDemo,
+      details: kyc.details || null
+    };
+
     res.json({
-      sim,
-      kyc,
+      apiCalls, // 👈 NUEVO: Traza de llamadas API
+      sim: cleanSim,
+      kyc: cleanKyc,
       trustScore: score,
       status,
       riskFactors,
@@ -121,9 +196,9 @@ router.post("/check", async (req, res) => {
       metadata: {
         mode: isLiveMode ? "LIVE" : "DEMO",
         mcpUsed, // Indica si MCP fue usado (invisible para usuario)
-        timestamp: new Date().toISOString(),
-        apiCallsSuccessful: isLiveMode ? apiCallsSuccessful : null,
-        totalAPICalls: isLiveMode ? 2 : 0,
+        timestamp: timestamp,
+        apiCallsSuccessful: apiCalls.successfulCalls,
+        totalAPICalls: apiCalls.totalCalls,
       },
     });
   } catch (error) {
@@ -183,6 +258,87 @@ router.post("/simulate", async (req, res) => {
 
     console.log(`\n🎬 Simulación: ${scenarioConfig.name}`);
 
+    /* ===== SIMULAR LLAMADAS API CON DATOS REALISTAS ===== */
+    const timestamp = new Date().toISOString();
+    
+    // SIMULAR: SIM Swap API Request/Response
+    const simSwapApiCall = {
+      request: {
+        method: "POST",
+        url: "https://network-as-code.p-eu.rapidapi.com/sim-swap/v0/retrieve-date",
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": "8e4***************************a7c (hidden)",
+          "X-RapidAPI-Host": "network-as-code.p-eu.rapidapi.com"
+        },
+        body: {
+          phoneNumber: TEST_USER.phone
+        }
+      },
+      response: {
+        status: 200,
+        data: scenarioConfig.simSwap 
+          ? { latestSimChange: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString() } // 48h atrás
+          : { latestSimChange: new Date(Date.now() - 500 * 24 * 60 * 60 * 1000).toISOString() }, // 500 días atrás
+        timestamp: timestamp
+      }
+    };
+
+    // SIMULAR: KYC Match API Request/Response
+    const kycApiCall = {
+      request: {
+        method: "POST",
+        url: "https://network-as-code.p-eu.rapidapi.com/kyc-match/v0.3/match",
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": "8e4***************************a7c (hidden)",
+          "X-RapidAPI-Host": "network-as-code.p-eu.rapidapi.com"
+        },
+        body: {
+          phoneNumber: TEST_USER.phone,
+          givenName: TEST_USER.firstName,
+          familyName: TEST_USER.lastName,
+          birthdate: TEST_USER.birthDate
+        }
+      },
+      response: {
+        status: 200,
+        data: {
+          matchResult: scenarioConfig.kycMatch ? "true" : "false",
+          matchDetails: {
+            givenNameMatch: scenarioConfig.kycMatch,
+            familyNameMatch: scenarioConfig.kycMatch,
+            birthdateMatch: scenarioConfig.kycMatch
+          }
+        },
+        timestamp: timestamp
+      }
+    };
+
+    // SIMULAR: Number Verification API Request/Response
+    const numberVerificationApiCall = {
+      request: {
+        method: "POST",
+        url: "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/number-verification/number-verification/v0/verify",
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": "8e4***************************a7c (hidden)",
+          "X-RapidAPI-Host": "network-as-code.nokia.rapidapi.com",
+          "Authorization": "Bearer ***hidden***"
+        },
+        body: {
+          phoneNumber: TEST_USER.phone
+        }
+      },
+      response: {
+        status: 200,
+        data: {
+          devicePhoneNumberVerified: true // En simulación siempre verificado
+        },
+        timestamp: timestamp
+      }
+    };
+
     /* ===== CALCULAR TRUST SCORE ===== */
     const { score, status, riskFactors, actionAllowed } = calculateTrustScore({
       simSwap: scenarioConfig.simSwap,
@@ -213,16 +369,50 @@ router.post("/simulate", async (req, res) => {
     res.json({
       simulated: true,
       scenario: scenarioConfig.name,
-      sim: { recentSwap: scenarioConfig.simSwap },
-      kyc: { match: scenarioConfig.kycMatch },
+      
+      // Datos simulados de las llamadas API
+      apiCalls: {
+        simSwap: simSwapApiCall,
+        kyc: kycApiCall,
+        numberVerification: numberVerificationApiCall,
+        totalCalls: 3,
+        successfulCalls: 3
+      },
+
+      // Resultados procesados
+      sim: { 
+        recentSwap: scenarioConfig.simSwap,
+        apiSuccess: true,
+        lastSwapDate: scenarioConfig.simSwap 
+          ? new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+          : null
+      },
+      kyc: { 
+        match: scenarioConfig.kycMatch,
+        apiSuccess: true,
+        details: {
+          givenNameMatch: scenarioConfig.kycMatch,
+          familyNameMatch: scenarioConfig.kycMatch,
+          birthdateMatch: scenarioConfig.kycMatch
+        }
+      },
+      numberVerification: {
+        verified: true,
+        apiSuccess: true,
+        isDemo: true
+      },
+      
       trustScore: score,
       status,
       riskFactors,
       actionAllowed,
       explanation,
+      
       metadata: {
         mode: "SIMULATION",
-        timestamp: new Date().toISOString(),
+        timestamp: timestamp,
+        apiCallsSuccessful: 3,
+        totalAPICalls: 3
       },
     });
   } catch (error) {

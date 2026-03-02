@@ -11,7 +11,11 @@ import {
   Check,
   X,
   ShieldCheck,
-  ShieldAlert
+  ShieldAlert,
+  MessageSquare,
+  CreditCard,
+  Lock,
+  MapPin
 } from "lucide-react";
 
 function App() {
@@ -20,9 +24,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [actionType, setActionType] = useState(null);
   const itemsPerPage = 10;
 
-  const checkGuardian = async () => {
+  const checkGuardian = async (action = null) => {
+    if (action) setActionType(action);
     setLoading(true);
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
@@ -30,12 +36,20 @@ function App() {
         firstName: TEST_USER.firstName,
         lastName: TEST_USER.lastName,
         birthDate: TEST_USER.birthDate,
+        actionType: action, // 👈 NUEVO: Enviamos el tipo de acción al backend
       });
       setResult(res.data);
-    } catch {
-      alert("Backend connection failed");
+    } catch (error) {
+      console.error("❌ Error en checkGuardian:", error);
+      console.error("Error details:", error.response?.data || error.message);
+      alert(`Backend error: ${error.response?.data?.error || error.message || "Connection failed"}`);
     }
     setLoading(false);
+  };
+
+  const resetCheck = () => {
+    setResult(null);
+    setActionType(null);
   };
 
   const runSimulation = async (scenario) => {
@@ -59,8 +73,6 @@ function App() {
     setCurrentPage(1); // Reset to first page when loading new history
   };
 
-  const resetCheck = () => setResult(null);
-
   // Pagination logic
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
@@ -68,6 +80,42 @@ function App() {
   const totalPages = Math.ceil(history.length / itemsPerPage);
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Sensitive Actions Definitions
+  const sensitiveActions = [
+    {
+      id: "sms",
+      title: "Suspicious SMS",
+      description: "Received SMS from my bank requesting action",
+      icon: MessageSquare,
+      color: "blue",
+      context: "suspicious SMS from your bank"
+    },
+    {
+      id: "transfer",
+      title: "Bank Transfer",
+      description: "Make a large bank transfer",
+      icon: CreditCard,
+      color: "green",
+      context: "bank transfer"
+    },
+    {
+      id: "password",
+      title: "Change Password",
+      description: "Update account password or sensitive data",
+      icon: Lock,
+      color: "purple",
+      context: "password change"
+    },
+    {
+      id: "location",
+      title: "New Location Access",
+      description: "Access account from unfamiliar location",
+      icon: MapPin,
+      color: "amber",
+      context: "access from new location"
+    }
+  ];
 
   // Loader Component
   const Loader = () => (
@@ -112,138 +160,200 @@ function App() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 py-2">
+      <main className="mx-auto max-w-6xl px-6 py-6">
         {/* ================= USER MODE ================= */}
         {mode === "user" && (
           <div className="flex flex-col items-center justify-start px-6 pt-8 pb-10">
             
-            <h2 className="text-4xl md:text-5xl font-semibold mb-3 text-gray-900">
-              Security Verification
-            </h2>
+            {!result ? (
+              <>
+                <ShieldCheck className="w-20 h-20 text-blue-600 mb-4" />
+                <h2 className="text-4xl md:text-5xl font-semibold mb-3 text-gray-900">
+                  Guardian Protection
+                </h2>
 
-            <p className="text-gray-600 mb-4 text-md md:text-lg max-w-md leading-relaxed text-center font-light">
-              Verify telecom security before performing an important action.
-            </p>
+                <p className="text-gray-600 mb-8 text-lg md:text-xl max-w-2xl leading-relaxed text-center font-light">
+                  Protect yourself before performing sensitive actions. Select what you want to do:
+                </p>
 
-            {!result && (
-              <button
-                onClick={checkGuardian}
-                disabled={loading}
-                className="w-full max-w-md py-6 text-xl md:text-2xl font-semibold rounded-2xl 
-                bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 
-                transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-md flex items-center justify-center gap-3"
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
-                    Checking...
-                  </>
-                ) : (
-                  "Start Verification"
-                )}
-              </button>
-            )}
-
-            {result && (
-              <div className="mt-6 max-w-md w-full bg-white border border-gray-200 rounded-3xl p-8 md:p-10 shadow-lg">
-                
-                <div
-                  className={`text-2xl md:text-3xl font-semibold mb-4 ${
-                    result.trustScore >= 75
-                      ? "text-green-600"
-                      : result.trustScore >= 50
-                      ? "text-amber-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {result.trustScore >= 75
-                    ? "Secure"
-                    : result.trustScore >= 50
-                    ? "Review Recommended"
-                    : "High Risk"}
+                {/* SENSITIVE ACTIONS GRID */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl mb-6">
+                  {sensitiveActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => checkGuardian(action.id)}
+                        disabled={loading}
+                        className="group relative p-6 rounded-2xl border-2 border-gray-200 bg-white hover:border-blue-500 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`p-3 rounded-xl bg-${action.color}-50 group-hover:bg-${action.color}-100 transition-colors`}>
+                            <Icon className={`w-6 h-6 text-${action.color}-600`} />
+                          </div>
+                          <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                              {action.title}
+                            </h3>
+                            <p className="text-sm text-gray-600 font-light">
+                              {action.description}
+                            </p>
+                          </div>
+                        </div>
+                        {loading && (
+                          <div className="absolute inset-0 bg-white bg-opacity-80 flex items-center justify-center rounded-2xl">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                          </div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* SCORE + ALERT ICON */}
-                <div className="flex items-center justify-center gap-4 mb-4">
-                  <div className="text-[96px] md:text-[110px] font-semibold leading-none text-gray-900">
-                    {result.trustScore}
+                <p className="text-sm text-gray-500 text-center max-w-lg font-light">
+                  We'll verify your identity using telecom signals before allowing the action.
+                </p>
+              </>
+            ) : (
+              <div className="w-full max-w-2xl">
+                {/* ACTION CONTEXT HEADER */}
+                {actionType && sensitiveActions.find(a => a.id === actionType) && (
+                  <div className="mb-6 p-4 rounded-xl bg-blue-50 border border-blue-200 flex items-center gap-3">
+                    {(() => {
+                      const action = sensitiveActions.find(a => a.id === actionType);
+                      const Icon = action.icon;
+                      return (
+                        <>
+                          <Icon className="w-5 h-5 text-blue-600" />
+                          <span className="text-sm font-medium text-blue-900">
+                            Verification for: {action.title}
+                          </span>
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+
+                {/* RESULT CARD */}
+                <div className="bg-white border border-gray-200 rounded-3xl p-8 md:p-10 shadow-lg">
+                  
+                  <div
+                    className={`text-2xl md:text-3xl font-semibold mb-4 text-center ${
+                      result.trustScore >= 75
+                        ? "text-green-600"
+                        : result.trustScore >= 50
+                        ? "text-amber-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {result.trustScore >= 75
+                      ? "✓ Secure"
+                      : result.trustScore >= 50
+                      ? "⚠ Review Recommended"
+                      : "⛔ High Risk"}
                   </div>
 
-                  {result.trustScore < 50 && (
-                    <AlertOctagon className="w-14 h-14 text-red-500 animate-pulse" />
-                  )}
-                </div>
+                  {/* SCORE + ALERT ICON */}
+                  <div className="flex items-center justify-center gap-4 mb-4">
+                    <div className="text-[96px] md:text-[110px] font-semibold leading-none text-gray-900">
+                      {result.trustScore}
+                    </div>
 
-                <div className="text-gray-500 text-lg mb-6 font-light">
-                  Trust Score (0 – 100)
-                </div>
+                    {result.trustScore < 50 && (
+                      <AlertOctagon className="w-14 h-14 text-red-500 animate-pulse" />
+                    )}
+                  </div>
 
-                {/* TRAFFIC LIGHT MESSAGE */}
-                <div className="mb-6">
-                  {result.trustScore >= 75 && (
-                    <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-green-50 border border-green-200">
-                      <CheckCircle2 className="w-6 h-6 text-green-600" />
-                      <span className="text-lg font-medium text-green-800">
-                        All good. You can continue.
-                      </span>
+                  <div className="text-gray-500 text-lg mb-6 font-light text-center">
+                    Trust Score (0 – 100)
+                  </div>
+
+                  {/* TRAFFIC LIGHT MESSAGE */}
+                  <div className="mb-6 flex justify-center">
+                    {result.trustScore >= 75 && (
+                      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-green-50 border-2 border-green-200">
+                        <CheckCircle2 className="w-7 h-7 text-green-600" />
+                        <div>
+                          <p className="text-lg font-semibold text-green-800">
+                            All good. You can continue.
+                          </p>
+                          <p className="text-sm text-green-700 mt-1">
+                            Your identity is verified and secure.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.trustScore >= 50 && result.trustScore < 75 && (
+                      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-amber-50 border-2 border-amber-200">
+                        <AlertTriangle className="w-7 h-7 text-amber-600" />
+                        <div>
+                          <p className="text-lg font-semibold text-amber-900">
+                            Please review before continuing.
+                          </p>
+                          <p className="text-sm text-amber-800 mt-1">
+                            Some verification signals need attention.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.trustScore < 50 && (
+                      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-red-50 border-2 border-red-200">
+                        <ShieldAlert className="w-7 h-7 text-red-600" />
+                        <div>
+                          <p className="text-lg font-semibold text-red-800">
+                            High risk detected. Do NOT continue.
+                          </p>
+                          <p className="text-sm text-red-700 mt-1">
+                            Your identity may be compromised. Contact support.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* PROGRESS BAR */}
+                  <div className="h-5 bg-gray-200 rounded-full overflow-hidden mb-8 shadow-inner">
+                    <div
+                      className={`h-full transition-all duration-700 ${
+                        result.trustScore >= 75
+                          ? "bg-gradient-to-r from-green-400 to-green-500"
+                          : result.trustScore >= 50
+                          ? "bg-gradient-to-r from-amber-400 to-amber-500"
+                          : "bg-gradient-to-r from-red-400 to-red-500"
+                      }`}
+                      style={{ width: `${result.trustScore}%` }}
+                    ></div>
+                  </div>
+
+                  {/* AI EXPLANATION */}
+                  {result.explanation && (
+                    <div className="mb-6 p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-700 mb-2">
+                            AI Explanation {result.mcpUsed && <span className="text-xs text-purple-600">(MCP Enhanced)</span>}
+                          </p>
+                          <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
+                        </div>
+                      </div>
                     </div>
                   )}
 
-                  {result.trustScore >= 50 && result.trustScore < 75 && (
-                    <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200">
-                      <AlertTriangle className="w-6 h-6 text-amber-600" />
-                      <span className="text-lg font-medium text-amber-900">
-                        Please review before continuing.
-                      </span>
-                    </div>
-                  )}
+                  <button
+                    onClick={resetCheck}
+                    className="w-full py-5 text-lg rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all font-semibold"
+                  >
+                    Check Another Action
+                  </button>
 
-                  {result.trustScore < 50 && (
-                    <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-50 border border-red-200">
-                      <ShieldAlert className="w-6 h-6 text-red-600" />
-                      <span className="text-lg font-medium text-red-800">
-                        High risk. Do not perform the action.
-                      </span>
-                    </div>
-                  )}
                 </div>
-
-                {/* PROGRESS BAR */}
-                <div className="h-4 bg-gray-200 rounded-full overflow-hidden mb-6">
-                  <div
-                    className={`h-full transition-all duration-700 ${
-                      result.trustScore >= 75
-                        ? "bg-green-500"
-                        : result.trustScore >= 50
-                        ? "bg-amber-500"
-                        : "bg-red-500"
-                    }`}
-                    style={{ width: `${result.trustScore}%` }}
-                  ></div>
-                </div>
-
-                <button
-                  onClick={checkGuardian}
-                  disabled={loading}
-                  className="w-full py-5 text-lg md:text-xl rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {loading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      Checking...
-                    </>
-                  ) : (
-                    "Verify Again"
-                  )}
-                </button>
-
-                <button
-                  onClick={resetCheck}
-                  className="w-full mt-3 py-4 text-base rounded-2xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-all font-medium"
-                >
-                  Clear Result
-                </button>
-
               </div>
             )}
           </div>
@@ -261,7 +371,7 @@ function App() {
                 Live Verification
               </h3>
               <button
-                onClick={checkGuardian}
+                onClick={() => checkGuardian()}
                 disabled={loading}
                 className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
@@ -292,34 +402,50 @@ function App() {
               <h3 className="text-sm font-medium text-gray-600 mb-4 uppercase tracking-wider">
                 Demo Scenarios
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <button
                   onClick={() => runSimulation("safe")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <CheckCircle2 className="h-4 w-4 text-green-600" />} Safe User
+                  <div className="flex items-center justify-center gap-2">
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <CheckCircle2 className="h-4 w-4 text-green-600" />} 
+                    Safe User
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Score: 100 | No SIM Swap | KYC Match</div>
                 </button>
                 <button
                   onClick={() => runSimulation("simswap")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <AlertTriangle className="h-4 w-4 text-amber-600" />} SIM Swap Detected
+                  <div className="flex items-center justify-center gap-2">
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <AlertTriangle className="h-4 w-4 text-amber-600" />} 
+                    SIM Swap Detected
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Score: 40 | SIM Swap ✓ | KYC Match</div>
                 </button>
                 <button
                   onClick={() => runSimulation("kyc")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <FileText className="h-4 w-4 text-blue-600" />} KYC Mismatch
+                  <div className="flex items-center justify-center gap-2">
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <FileText className="h-4 w-4 text-blue-600" />} 
+                    KYC Mismatch
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Score: 70 | No SIM Swap | KYC Fail</div>
                 </button>
                 <button
                   onClick={() => runSimulation("maximum")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <AlertOctagon className="h-4 w-4 text-red-600" />} Maximum Risk
+                  <div className="flex items-center justify-center gap-2">
+                    {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <AlertOctagon className="h-4 w-4 text-red-600" />} 
+                    Maximum Risk
+                  </div>
+                  <div className="text-xs text-gray-500 mt-1">Score: 10 | SIM Swap ✓ | KYC Fail</div>
                 </button>
               </div>
             </div>
@@ -339,7 +465,14 @@ function App() {
           <section className="lg:col-span-2">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
               <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                <h3 className="font-medium text-gray-900">Verification Results</h3>
+                <div className="flex items-center gap-3">
+                  <h3 className="font-medium text-gray-900">Verification Results</h3>
+                  {result?.simulated && (
+                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-purple-100 text-purple-700 uppercase">
+                      🎬 Simulated
+                    </span>
+                  )}
+                </div>
                 {result?.status && (
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
                     result.status === 'NORMAL' 
@@ -365,6 +498,30 @@ function App() {
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
+                  {/* Scenario Info (if simulated) */}
+                  {result.simulated && result.scenario && (
+                    <div className="p-4 rounded-xl bg-purple-50 border-2 border-purple-200">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-purple-700 font-semibold text-sm">🎬 Scenario:</span>
+                        <span className="text-purple-900 font-medium text-sm">{result.scenario}</span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="text-purple-600">SIM Swap:</span>
+                          <span className={`font-semibold ${result.sim?.recentSwap ? 'text-red-700' : 'text-green-700'}`}>
+                            {result.sim?.recentSwap ? '✓ Detected' : '✗ Not Detected'}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-purple-600">KYC Match:</span>
+                          <span className={`font-semibold ${result.kyc?.match ? 'text-green-700' : 'text-red-700'}`}>
+                            {result.kyc?.match ? '✓ Matched' : '✗ Failed'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   {/* Trust Score */}
                   <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
                     <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Trust Score</p>
@@ -646,16 +803,150 @@ function App() {
           </div>
         )}
 
-        {/* JSON/RAW DATA SECTION */}
+        {/* JSON INPUT/OUTPUT SECTION */}
         {result && (
           <div className="mt-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h3 className="font-medium text-gray-900">Raw API Response (Debug)</h3>
+              <h3 className="font-medium text-gray-900">API Calls Trace (Debug)</h3>
+              {result.apiCalls && (
+                <p className="text-xs text-gray-500 mt-1">
+                  {result.apiCalls.successfulCalls}/{result.apiCalls.totalCalls} calls successful
+                </p>
+              )}
             </div>
-            <div className="p-6">
-              <pre className="text-xs text-gray-700 overflow-x-auto bg-gray-50 p-4 rounded-lg border border-gray-200">
-                {JSON.stringify(result, null, 2)}
-              </pre>
+            <div className="p-6 space-y-6">
+              {/* API CALLS: REQUEST + RESPONSE LADO A LADO */}
+              {result.apiCalls && (
+                <>
+                  {/* 1. SIM SWAP API */}
+                  <div className="border-2 border-purple-200 rounded-xl overflow-hidden">
+                    <div className="bg-purple-50 px-4 py-2 border-b border-purple-200">
+                      <p className="text-sm font-semibold text-purple-900">1. SIM Swap API</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 divide-x divide-purple-200">
+                      {/* REQUEST */}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-100 px-2 py-1 rounded">
+                             Request
+                          </span>
+                        </div>
+                        <pre className="text-xs text-gray-700 overflow-x-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
+{JSON.stringify(result.apiCalls.simSwap.request, null, 2)}
+                        </pre>
+                      </div>
+                      
+                      {/* RESPONSE */}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded ${
+                            result.apiCalls.simSwap.response.status >= 200 && result.apiCalls.simSwap.response.status < 300
+                              ? 'bg-green-100 text-green-700'
+                              : result.apiCalls.simSwap.response.status >= 400 && result.apiCalls.simSwap.response.status < 500
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                             Response: {result.apiCalls.simSwap.response.status}
+                          </span>
+                        </div>
+                        <pre className="text-xs text-gray-700 overflow-x-auto bg-green-50 p-3 rounded-lg border border-green-200">
+{JSON.stringify(result.apiCalls.simSwap.response, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 2. KYC MATCH API */}
+                  <div className="border-2 border-indigo-200 rounded-xl overflow-hidden">
+                    <div className="bg-indigo-50 px-4 py-2 border-b border-indigo-200">
+                      <p className="text-sm font-semibold text-indigo-900">2. KYC Match API</p>
+                    </div>
+                    <div className="grid md:grid-cols-2 divide-x divide-indigo-200">
+                      {/* REQUEST */}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-100 px-2 py-1 rounded">
+                             Request
+                          </span>
+                        </div>
+                        <pre className="text-xs text-gray-700 overflow-x-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
+{JSON.stringify(result.apiCalls.kyc.request, null, 2)}
+                        </pre>
+                      </div>
+                      
+                      {/* RESPONSE */}
+                      <div className="p-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded ${
+                            result.apiCalls.kyc.response.status >= 200 && result.apiCalls.kyc.response.status < 300
+                              ? 'bg-green-100 text-green-700'
+                              : result.apiCalls.kyc.response.status >= 400 && result.apiCalls.kyc.response.status < 500
+                              ? 'bg-amber-100 text-amber-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}>
+                             Response: {result.apiCalls.kyc.response.status}
+                          </span>
+                        </div>
+                        <pre className="text-xs text-gray-700 overflow-x-auto bg-green-50 p-3 rounded-lg border border-green-200">
+{JSON.stringify(result.apiCalls.kyc.response, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 3. NUMBER VERIFICATION API */}
+                  {result.apiCalls.numberVerification && (
+                    <div className="border-2 border-teal-200 rounded-xl overflow-hidden">
+                      <div className="bg-teal-50 px-4 py-2 border-b border-teal-200">
+                        <p className="text-sm font-semibold text-teal-900">3. Number Verification API</p>
+                      </div>
+                      <div className="grid md:grid-cols-2 divide-x divide-teal-200">
+                        {/* REQUEST */}
+                        <div className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider bg-gray-100 px-2 py-1 rounded">
+                              📤 Request
+                            </span>
+                          </div>
+                          <pre className="text-xs text-gray-700 overflow-x-auto bg-gray-50 p-3 rounded-lg border border-gray-200">
+{JSON.stringify(result.apiCalls.numberVerification.request, null, 2)}
+                          </pre>
+                        </div>
+                        
+                        {/* RESPONSE */}
+                        <div className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={`text-xs font-semibold uppercase tracking-wider px-2 py-1 rounded ${
+                              result.apiCalls.numberVerification.response.status >= 200 && result.apiCalls.numberVerification.response.status < 300
+                                ? 'bg-green-100 text-green-700'
+                                : result.apiCalls.numberVerification.response.status >= 400 && result.apiCalls.numberVerification.response.status < 500
+                                ? 'bg-amber-100 text-amber-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              📥 Response: {result.apiCalls.numberVerification.response.status}
+                            </span>
+                          </div>
+                          <pre className="text-xs text-gray-700 overflow-x-auto bg-green-50 p-3 rounded-lg border border-green-200">
+{JSON.stringify(result.apiCalls.numberVerification.response, null, 2)}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* FINAL PROCESSED RESULT */}
+              <div className="border-2 border-blue-200 rounded-xl overflow-hidden">
+                <div className="bg-blue-50 px-4 py-2 border-b border-blue-200">
+                  <p className="text-sm font-semibold text-blue-900">⚙️ Processed Result (Trust Score + MCP Decision)</p>
+                </div>
+                <div className="p-4">
+                  <pre className="text-xs text-gray-700 overflow-x-auto bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    {JSON.stringify(result, null, 2)}
+                  </pre>
+                </div>
+              </div>
             </div>
           </div>
         )}
