@@ -4,6 +4,7 @@ import "./index.css";
 import { TEST_USER, DEMO_SCENARIOS } from "./constants";
 
 function App() {
+  const [mode, setMode] = useState("user");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
@@ -12,8 +13,25 @@ function App() {
     setLoading(true);
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
-        ...TEST_USER, // Usa datos consistentes
+        phone: TEST_USER.phone,
+        firstName: TEST_USER.firstName,
+        lastName: TEST_USER.lastName,
+        birthDate: TEST_USER.birthDate,
       });
+      setResult(res.data);
+    } catch {
+      alert("Backend connection failed");
+    }
+    setLoading(false);
+  };
+
+  const runSimulation = async (scenario) => {
+    setLoading(true);
+    try {
+      const res = await axios.post(
+        "http://localhost:8080/guardian/simulate",
+        { scenario }
+      );
       setResult(res.data);
     } catch (error) {
       console.error(error);
@@ -22,257 +40,306 @@ function App() {
     setLoading(false);
   };
 
-  const runSimulation = async (scenario) => {
-    setLoading(true);
-    try {
-      const res = await axios.post("http://localhost:8080/guardian/simulate", {
-        scenario, // Envía: "safe", "simswap", "kyc", "maximum"
-      });
-      setResult(res.data);
-    } catch (error) {
-      console.error(error);
-      alert("Simulation failed");
-    }
-    setLoading(false);
-  };
-
   const loadHistory = async () => {
-    try {
-      const res = await axios.get(
-        "http://localhost:8080/guardian/history"
-      );
-      setHistory(res.data);
-    } catch (error) {
-      console.error(error);
-      alert("Error loading history");
-    }
+    const res = await axios.get("http://localhost:8080/guardian/history");
+    setHistory(res.data);
   };
 
-  const statusBadge = (status) => {
-    const base =
-      "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ring-1 ring-inset";
-    if (!status) return `${base} bg-slate-50 text-slate-700 ring-slate-200`;
-    const s = String(status).toLowerCase();
-    if (s.includes("ok") || s.includes("safe") || s.includes("clear"))
-      return `${base} bg-emerald-50 text-emerald-700 ring-emerald-200`;
-    if (s.includes("warn") || s.includes("review"))
-      return `${base} bg-amber-50 text-amber-700 ring-amber-200`;
-    if (s.includes("risk") || s.includes("fail") || s.includes("blocked"))
-      return `${base} bg-rose-50 text-rose-700 ring-rose-200`;
-    return `${base} bg-slate-50 text-slate-700 ring-slate-200`;
-  };
-
-  const metricChip = (label, value, positive = true) => (
-    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3">
-      <span className="text-sm font-medium text-slate-700">{label}</span>
-      <span
-        className={[
-          "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset",
-          value
-            ? positive
-              ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-              : "bg-rose-50 text-rose-700 ring-rose-200"
-            : "bg-slate-50 text-slate-700 ring-slate-200",
-        ].join(" ")}
-      >
-        {value ? "YES" : "NO"}
-      </span>
-    </div>
-  );
+  const resetCheck = () => setResult(null);
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">
-      <header className="border-b border-slate-200 bg-white/70 backdrop-blur">
-        <div className="mx-auto max-w-5xl px-6 py-5">
-          <h1 className="text-xl font-semibold text-slate-900">
-            Guardian Dashboard
-          </h1>
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+      {/* HEADER */}
+      <header className="border-b border-gray-200 bg-white shadow-sm">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Guardian</h1>
+            <p className="text-sm text-gray-500 mt-1">Elderly Protection System</p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={() => setMode("user")}
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "user" 
+                  ? "bg-blue-600 text-white shadow-md" 
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              User Mode
+            </button>
+
+            <button
+              onClick={() => setMode("dashboard")}
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${
+                mode === "dashboard" 
+                  ? "bg-blue-600 text-white shadow-md" 
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }`}
+            >
+              Dashboard
+            </button>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-6 py-8">
+      <main className="mx-auto max-w-6xl px-6 py-8">
         <div className="grid gap-6 lg:grid-cols-3">
-
-          {/* ACTIONS */}
-          <section className="lg:col-span-1">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6 space-y-4">
-              
-              <h3 className="text-sm font-semibold text-slate-900">
-                Verificación Real
+          {/* ACTIONS PANEL */}
+          <section className="lg:col-span-1 space-y-4">
+            {/* Live Check */}
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
+                Live Verification
               </h3>
-
               <button
                 onClick={checkGuardian}
                 disabled={loading}
-                className="w-full rounded-xl bg-slate-900 text-white py-2.5 text-sm font-semibold hover:bg-slate-800 disabled:bg-slate-300"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md disabled:opacity-50"
               >
                 {loading ? "Checking..." : `Check: ${TEST_USER.firstName}`}
               </button>
-
-              <div className="pt-2 border-t border-slate-200">
-                <h3 className="text-sm font-semibold text-slate-900 mb-3">
-                  Simulaciones (Demo)
-                </h3>
-                
-                <div className="space-y-2">
-                  {Object.values(DEMO_SCENARIOS).map((scenario) => (
-                    <button
-                      key={scenario.scenario}
-                      onClick={() => runSimulation(scenario.scenario)}
-                      disabled={loading}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-sm hover:bg-slate-50 disabled:opacity-50"
-                    >
-                      <div className="font-medium">{scenario.label}</div>
-                      <div className="text-xs text-slate-500">{scenario.description}</div>
-                    </button>
-                  ))}
+              {result?.apiMode && (
+                <div className={`mt-3 px-3 py-2 rounded-lg text-xs font-medium text-center ${
+                  result.apiMode === 'LIVE' 
+                    ? 'bg-green-50 text-green-700 border border-green-200' 
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {result.apiMode === 'LIVE' ? '🟢 LIVE APIs' : '🟡 DEMO Mode'} 
+                  {result.apiCallsSuccessful && ` (${result.apiCallsSuccessful}/2 OK)`}
                 </div>
-              </div>
+              )}
+            </div>
 
+            {/* Demo Scenarios */}
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
+                Demo Scenarios
+              </h3>
+              <div className="space-y-2">
+                <button
+                  onClick={() => runSimulation("safe")}
+                  disabled={loading}
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                >
+                  ✅ Safe User
+                </button>
+                <button
+                  onClick={() => runSimulation("simswap")}
+                  disabled={loading}
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                >
+                  ⚠️ SIM Swap Detected
+                </button>
+                <button
+                  onClick={() => runSimulation("kyc")}
+                  disabled={loading}
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                >
+                  📄 KYC Mismatch
+                </button>
+                <button
+                  onClick={() => runSimulation("maximum")}
+                  disabled={loading}
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                >
+                  🚨 Maximum Risk
+                </button>
+              </div>
+            </div>
+
+            {/* History */}
+            <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
               <button
                 onClick={loadHistory}
-                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold hover:bg-slate-50"
+                className="w-full border border-gray-300 py-3 rounded-xl font-medium text-gray-700 hover:bg-gray-50 transition-all"
               >
                 Load History
               </button>
             </div>
           </section>
 
-          {/* RESULTS */}
+          {/* RESULTS PANEL */}
           <section className="lg:col-span-2">
-            <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
-
-              <div className="flex justify-between border-b border-slate-200 px-6 py-5">
-                <h2 className="text-sm font-semibold text-slate-900">
-                  Results
-                </h2>
-
-                <span className={statusBadge(result?.status)}>
-                  {result ? `Status: ${result.status}` : "No data yet"}
-                </span>
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
+          {/* RESULTS PANEL */}
+          <section className="lg:col-span-2">
+            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
+              <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+                <h3 className="font-semibold text-gray-900">Verification Results</h3>
+                {result?.status && (
+                  <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
+                    result.status === 'NORMAL' 
+                      ? 'bg-green-100 text-green-700' 
+                      : result.status === 'WARNING' 
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {result.status}
+                  </span>
+                )}
               </div>
 
               {!result ? (
-                <div className="px-6 py-10 text-center text-slate-600">
-                  Run a check to see results
+                <div className="p-16 text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-gray-500 font-medium">No verification executed</p>
+                  <p className="text-sm text-gray-400 mt-2">Click "Check" or run a simulation</p>
                 </div>
               ) : (
-                <div className="px-6 py-6 space-y-6">
-
-                  {/* API Status Indicator */}
-                  {result.metadata && (
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-slate-600">API Mode</p>
-                        <p className="text-sm font-semibold">
-                          {result.metadata.mode}
-                          {result.metadata.mode === "LIVE" && (
-                            <span className="ml-2 text-xs text-emerald-600">
-                              ({result.metadata.apiCallsSuccessful}/{result.metadata.totalAPICalls} APIs OK)
-                            </span>
-                          )}
-                        </p>
-                      </div>
-                      <span className={[
-                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
-                        result.metadata.mode === "LIVE" 
-                          ? "bg-emerald-100 text-emerald-700" 
-                          : "bg-amber-100 text-amber-700"
-                      ].join(" ")}>
-                        {result.metadata.mode === "LIVE" ? "🟢" : "🟡"}
-                      </span>
-                    </div>
-                  )}
-
+                <div className="p-6 space-y-6">
                   {/* Trust Score */}
-                  <div>
-                    <p className="text-sm text-slate-600">Trust Score</p>
-                    <p className="text-3xl font-semibold">
-                      {result.trustScore} / 100
-                    </p>
+                  <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
+                    <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Trust Score</p>
+                    <p className="text-5xl font-bold text-gray-900">{result.trustScore}</p>
+                    <p className="text-lg text-gray-500 mt-1">out of 100</p>
                   </div>
 
-                  {/* Signals */}
-                  <div className="space-y-3">
-                    {metricChip("SIM Swap", result.sim?.recentSwap, false)}
-                    
-                    {/* KYC Match con detalles */}
-                    <div className="space-y-2">
-                      {metricChip("KYC Match (Overall)", result.kyc?.match, true)}
-                      {result.kyc?.givenNameMatch !== undefined && (
-                        <div className="pl-4 text-xs text-slate-600 flex gap-3">
-                          <span>Given Name: {result.kyc.givenNameMatch ? "✅" : "❌"}</span>
-                          <span>Family Name: {result.kyc.familyNameMatch ? "✅" : "❌"}</span>
-                          <span>Birthdate: {result.kyc.birthdateMatch ? "✅" : "❌"}</span>
+                  {/* API Signals Grid */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {/* SIM Swap */}
+                    <div className={`p-5 rounded-xl border-2 transition-all ${
+                      result.sim?.recentSwap 
+                        ? 'bg-red-50 border-red-200' 
+                        : 'bg-green-50 border-green-200'
+                    }`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">SIM Swap</p>
+                          <p className={`text-xl font-bold mt-2 ${
+                            result.sim?.recentSwap ? 'text-red-700' : 'text-green-700'
+                          }`}>
+                            {result.sim?.recentSwap ? "⚠️ Detected" : "✅ Not Detected"}
+                          </p>
+                        </div>
+                        {!result.sim?.apiSuccess && (
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">DEMO</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* KYC Match */}
+                    <div className={`p-5 rounded-xl border-2 transition-all ${
+                      result.kyc?.match 
+                        ? 'bg-green-50 border-green-200' 
+                        : 'bg-amber-50 border-amber-200'
+                    }`}>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">KYC Match</p>
+                          <p className={`text-xl font-bold mt-2 ${
+                            result.kyc?.match ? 'text-green-700' : 'text-amber-700'
+                          }`}>
+                            {result.kyc?.match ? "✅ Matched" : "⚠️ Mismatch"}
+                          </p>
+                        </div>
+                        {!result.kyc?.apiSuccess && (
+                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-1 rounded">DEMO</span>
+                        )}
+                      </div>
+
+                      {/* KYC Details */}
+                      {result.kyc?.details && (
+                        <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
+                          <p className="text-xs font-semibold text-gray-500 uppercase">Details</p>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div className={`px-2 py-1 rounded text-center ${
+                              result.kyc.details.givenNameMatch 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {result.kyc.details.givenNameMatch ? '✓' : '✗'} Name
+                            </div>
+                            <div className={`px-2 py-1 rounded text-center ${
+                              result.kyc.details.familyNameMatch 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {result.kyc.details.familyNameMatch ? '✓' : '✗'} Surname
+                            </div>
+                            <div className={`px-2 py-1 rounded text-center ${
+                              result.kyc.details.birthdateMatch 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {result.kyc.details.birthdateMatch ? '✓' : '✗'} Birth
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
-                    
-                    {/* {metricChip("Number Verified", result.number?.verified, true)}
-                    {result.locationVerified !== undefined && 
-                      metricChip("Location Verified", result.locationVerified, true)
-                    } */}
                   </div>
 
-                  {/* API Status Details (LIVE mode only) */}
-                  {result.metadata?.mode === "LIVE" && (
-                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
-                      <p className="text-xs font-semibold text-blue-900 mb-2">
-                        Nokia API Status
-                      </p>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="flex items-center gap-2">
-                          <span>{result.sim?.apiSuccess ? "✅" : "❌"}</span>
-                          <span className="text-slate-700">SIM Swap</span>
+                  {/* Action Allowed */}
+                  <div className={`p-5 rounded-xl border-2 ${
+                    result.actionAllowed 
+                      ? 'bg-blue-50 border-blue-200' 
+                      : 'bg-red-50 border-red-200'
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                        result.actionAllowed ? 'bg-blue-200' : 'bg-red-200'
+                      }`}>
+                        {result.actionAllowed ? (
+                          <svg className="w-6 h-6 text-blue-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <svg className="w-6 h-6 text-red-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold text-gray-900">
+                          {result.actionAllowed ? "Action Allowed" : "Action Blocked"}
+                        </p>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {result.actionAllowed 
+                            ? "User can proceed with sensitive operations" 
+                            : "Additional verification required"}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* AI Explanation */}
+                  {result.explanation && (
+                    <div className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                          </svg>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <span>{result.kyc?.apiSuccess ? "✅" : "❌"}</span>
-                          <span className="text-slate-700">KYC Match</span>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-gray-700 mb-2">
+                            AI Explanation {result.mcpUsed && <span className="text-xs text-purple-600">(MCP Enhanced)</span>}
+                          </p>
+                          <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
                         </div>
-                        {/* <div className="flex items-center gap-2">
-                          <span>{result.number?.apiSuccess ? "✅" : "❌"}</span>
-                          <span className="text-slate-700">Number Verify</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span>{result.deviceLocation?.apiSuccess ? "✅" : "❌"}</span>
-                          <span className="text-slate-700">Location Get</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span>{result.locationVerification?.apiSuccess ? "✅" : "❌"}</span>
-                          <span className="text-slate-700">Location Verify</span>
-                        </div> */}
                       </div>
                     </div>
                   )}
 
-                  {result && !result.actionAllowed && (
-                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-semibold">
-                      🚫 Sensitive operation blocked due to telecom risk signals.
+                  {/* Risk Factors */}
+                  {result.riskFactors && result.riskFactors.length > 0 && (
+                    <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
+                      <p className="text-sm font-semibold text-gray-700 mb-3">Risk Factors</p>
+                      <ul className="space-y-2">
+                        {result.riskFactors.map((factor, idx) => (
+                          <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
+                            <span className="text-red-500 mt-0.5">•</span>
+                            <span>{factor}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
-
-                  {/* AI Explanation */}
-                  {result.explanation && (
-                    <div>
-                      <p className="text-sm font-semibold text-slate-700 mb-2">
-                        AI Security Explanation
-                      </p>
-                      <pre className="bg-slate-50 p-4 rounded-xl text-xs whitespace-pre-wrap">
-                        {result.explanation}
-                      </pre>
-                    </div>
-                  )}
-
-                  {/* Raw JSON */}
-                  <div>
-                    <p className="text-xs text-slate-500 mb-2">
-                      Raw response
-                    </p>
-                    <pre className="bg-slate-50 p-4 rounded-xl text-xs overflow-auto">
-                      {JSON.stringify(result, null, 2)}
-                    </pre>
-                  </div>
-
                 </div>
               )}
             </div>
@@ -281,30 +348,42 @@ function App() {
 
         {/* HISTORY TABLE */}
         {history.length > 0 && (
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">
-              Risk Check History
-            </h2>
+          <div className="mt-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+              <h3 className="font-semibold text-gray-900">Verification History</h3>
+            </div>
 
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left border-b">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Score</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2">SIM Swap</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Score</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">SIM Swap</th>
                   </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-gray-100">
                   {history.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-2">
+                    <tr key={item.id} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4 text-sm text-gray-900">
                         {new Date(item.created_at).toLocaleString()}
                       </td>
-                      <td>{item.trust_score}</td>
-                      <td>{item.status}</td>
-                      <td>{item.sim_swap_result ? "YES" : "NO"}</td>
+                      <td className="px-6 py-4 text-sm font-semibold text-gray-900">{item.trust_score}</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                          item.status === 'NORMAL' 
+                            ? 'bg-green-100 text-green-700' 
+                            : item.status === 'WARNING' 
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {item.sim_swap_result ? "⚠️ Yes" : "✅ No"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -312,7 +391,6 @@ function App() {
             </div>
           </div>
         )}
-
       </main>
     </div>
   );
