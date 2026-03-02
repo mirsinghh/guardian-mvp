@@ -13,9 +13,9 @@ function App() {
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
         phone: "+99999991000",
-        firstName: "John",
-        lastName: "Doe",
-        birthDate: "1990-01-01",
+        firstName: "Federica",
+        lastName: "Sanchez Arjona",
+        birthDate: "1978-08-22",
         latitude: coords?.latitude,
         longitude: coords?.longitude,
       });
@@ -186,11 +186,23 @@ function App() {
                   {/* Signals */}
                   <div className="space-y-3">
                     {metricChip("SIM Swap", result.sim?.recentSwap, false)}
-                    {metricChip("KYC Match", result.kyc?.match, true)}
-                    {metricChip("Number Verified", result.number?.verified, true)}
+                    
+                    {/* KYC Match con detalles */}
+                    <div className="space-y-2">
+                      {metricChip("KYC Match (Overall)", result.kyc?.match, true)}
+                      {result.kyc?.givenNameMatch !== undefined && (
+                        <div className="pl-4 text-xs text-slate-600 flex gap-3">
+                          <span>Given Name: {result.kyc.givenNameMatch ? "✅" : "❌"}</span>
+                          <span>Family Name: {result.kyc.familyNameMatch ? "✅" : "❌"}</span>
+                          <span>Birthdate: {result.kyc.birthdateMatch ? "✅" : "❌"}</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* {metricChip("Number Verified", result.number?.verified, true)}
                     {result.locationVerified !== undefined && 
                       metricChip("Location Verified", result.locationVerified, true)
-                    }
+                    } */}
                   </div>
 
                   {/* API Status Details (LIVE mode only) */}
@@ -208,7 +220,7 @@ function App() {
                           <span>{result.kyc?.apiSuccess ? "✅" : "❌"}</span>
                           <span className="text-slate-700">KYC Match</span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        {/* <div className="flex items-center gap-2">
                           <span>{result.number?.apiSuccess ? "✅" : "❌"}</span>
                           <span className="text-slate-700">Number Verify</span>
                         </div>
@@ -219,8 +231,14 @@ function App() {
                         <div className="flex items-center gap-2">
                           <span>{result.locationVerification?.apiSuccess ? "✅" : "❌"}</span>
                           <span className="text-slate-700">Location Verify</span>
-                        </div>
+                        </div> */}
                       </div>
+                    </div>
+                  )}
+
+                  {result && !result.actionAllowed && (
+                    <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-sm font-semibold">
+                      🚫 Sensitive operation blocked due to telecom risk signals.
                     </div>
                   )}
 

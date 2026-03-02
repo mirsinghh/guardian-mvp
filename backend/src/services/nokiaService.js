@@ -1,6 +1,61 @@
 import axios from "axios";
 import crypto from "crypto";
 
+
+// async function getAccessToken() {
+//   try {
+//     const response = await axios.get(
+//       "https://network-as-code.p-eu.rapidapi.com/oauth2/v1/auth/clientcredentials",
+//       {
+//         headers: {
+//           "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+//           "X-RapidAPI-Host": "network-as-code.nokia.rapidapi.com",
+//         },
+//         params: {
+//           client_id: process.env.NOKIA_CLIENT_ID,
+//           client_secret: process.env.NOKIA_CLIENT_SECRET,
+//         },
+//       }
+//     );
+
+//     console.log("[TOKEN SUCCESS]", response.data);
+//     return response.data.access_token;
+
+//   } catch (error) {
+//     console.error("[TOKEN ERROR]", error.response?.data || error.message);
+//     throw error;
+//   }
+// }
+
+let cachedToken = null;
+let tokenExpiry = null;
+
+async function getAccessToken() {
+
+  if (cachedToken && Date.now() < tokenExpiry) {
+    return cachedToken;
+  }
+
+  const response = await axios.get(
+    "https://network-as-code.p-eu.rapidapi.com/oauth2/v1/auth/clientcredentials",
+    {
+      headers: {
+        "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+        "X-RapidAPI-Host": "network-as-code.nokia.rapidapi.com",
+      },
+      params: {
+        client_id: process.env.NOKIA_CLIENT_ID,
+        client_secret: process.env.NOKIA_CLIENT_SECRET,
+      },
+    }
+  );
+
+  cachedToken = response.data.access_token;
+  tokenExpiry = Date.now() + (response.data.expires_in - 60) * 1000;
+
+  return cachedToken;
+}
+
 // SIM SWAP
 
 export async function checkSimSwap(phone) {
@@ -97,8 +152,28 @@ export async function checkKYC(phone, userData) {
     );
 
     console.log("[LIVE API] KYC Match SUCCESS:", response.data);
+    
+    // KYC v0.3 puede devolver campos individuales o un campo 'match' global
+    const givenNameMatch = response.data.givenNameMatch === true || response.data.givenNameMatch === "true";
+    const familyNameMatch = response.data.familyNameMatch === true || response.data.familyNameMatch === "true";
+    const birthdateMatch = response.data.birthdateMatch === true || response.data.birthdateMatch === "true";
+    
+    // Si hay campo 'match' global, usarlo. Si no, calcular basado en campos individuales
+    let overallMatch;
+    if (response.data.match !== undefined) {
+      overallMatch = response.data.match === true || response.data.match === "true";
+    } else {
+      // Match global = todos los campos enviados coinciden
+      overallMatch = givenNameMatch && familyNameMatch && birthdateMatch;
+    }
+    
+    console.log("[KYC DETAILS] givenName:", givenNameMatch, "| familyName:", familyNameMatch, "| birthdate:", birthdateMatch, "| OVERALL:", overallMatch);
+    
     return {
-      match: response.data.match ?? false,
+      match: overallMatch,
+      givenNameMatch,
+      familyNameMatch,
+      birthdateMatch,
       isDemo: false,
       apiSuccess: true,
     };
@@ -120,8 +195,10 @@ export async function checkNumberVerification(phone) {
   }
 
   try {
+    const accessToken = await getAccessToken();
+
     const response = await axios.post(
-      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/number-verification/number-verification/v0.2/verify",
+      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/number-verification/number-verification/v0/verify",
       {
         phoneNumber: phone,
       },
@@ -129,22 +206,29 @@ export async function checkNumberVerification(phone) {
         headers: {
           "Content-Type": "application/json",
           "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
-          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
-          "X-Correlator": crypto.randomUUID(),
+          "X-RapidAPI-Host": "network-as-code.nokia.rapidapi.com",
+          Authorization: `Bearer ${accessToken}`,
         },
       }
     );
 
     console.log("[LIVE API] Number Verification SUCCESS:", response.data);
+
     return {
-      verified: response.data.verified ?? false,
+      verified: response.data.devicePhoneNumberVerified ?? false,
       isDemo: false,
       apiSuccess: true,
     };
 
   } catch (error) {
     console.error("[LIVE API] Number Verification ERROR:", error.response?.data || error.message);
-    return { verified: false, isDemo: false, apiSuccess: false, error: error.message };
+
+    return {
+      verified: false,
+      isDemo: false,
+      apiSuccess: false,
+      error: error.response?.data || error.message,
+    };
   }
 }
 
@@ -165,7 +249,7 @@ export async function getDeviceLocation(phone) {
 
   try {
     const response = await axios.post(
-      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/device-location/device-location/v0.3/retrieve",
+      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/device-location/device-location/v0/retrieve",
       {
         device: { phoneNumber: phone },
         maxAge: 60,
@@ -238,7 +322,7 @@ export async function checkLocationVerification(
 
   try {
     const response = await axios.post(
-      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/location-verification/location-verification/v0.3/verify",
+      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/location-verification/location-verification/v0/verify",
       {
         device: { phoneNumber: phone },
         area: {

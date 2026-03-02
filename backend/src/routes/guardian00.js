@@ -6,6 +6,9 @@ import { generateExplanation } from "../services/aiService.js";
 import {
   checkSimSwap,
   checkKYC,
+  checkNumberVerification,
+  getDeviceLocation,
+  checkLocationVerification,
 } from "../services/nokiaService.js";
 
 const router = express.Router();
@@ -15,7 +18,16 @@ const router = express.Router();
 ================================ */
 router.post("/check", async (req, res) => {
   try {
-    const { phone, firstName, lastName, birthDate } = req.body;
+    const {
+      phone,
+      firstName,
+      lastName,
+      birthDate,
+      latitude,
+      longitude,
+      radius,
+      maxAge,
+    } = req.body;
 
     /* ===== TELECOM SIGNALS ===== */
     const sim = await checkSimSwap(phone);
@@ -26,20 +38,42 @@ router.post("/check", async (req, res) => {
       birthDate,
     });
 
-    /* ===== TRUST SCORE ===== */
-    const { score, status, riskFactors, actionAllowed } =
-      calculateTrustScore({
-        simSwap: sim.recentSwap,
-        kycMatch: kyc.match,
-      });
+    const number = await checkNumberVerification(phone);
 
-    const explanation = await generateExplanation({
+    /* ===== DEVICE LOCATION ===== */
+    const deviceLocation = await getDeviceLocation(phone);
+
+    const locationToVerify = {
+      latitude: latitude ?? deviceLocation?.latitude,
+      longitude: longitude ?? deviceLocation?.longitude,
+      radius: radius ?? 1500,
+      maxAge: maxAge ?? 120,
+    };
+
+    const locationVerification = await checkLocationVerification(
+      phone,
+      locationToVerify
+    );
+
+    const locationVerified =
+      locationVerification?.verificationResult === "TRUE" ||
+      locationVerification?.verificationResult === "PARTIAL";
+
+    /* ===== TRUST SCORE ===== */
+    const { score, status } = calculateTrustScore({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
+      numberVerified: number.verified,
+      locationVerified,
+    });
+
+    const explanation = generateExplanation({
+      simSwap: sim.recentSwap,
+      kycMatch: kyc.match,
+      numberVerified: number.verified,
+      locationVerified,
       score,
       status,
-      riskFactors,
-      context: "elderly_protection",
     });
 
     /* ===== DB SAVE ===== */
@@ -48,36 +82,45 @@ router.post("/check", async (req, res) => {
     await pool.query(
       `
       INSERT INTO risk_checks 
-      (id, sim_swap_result, kyc_result, trust_score, status, risk_factors)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (id, sim_swap_result, kyc_result, number_verification_result, location_verification_result, trust_score, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
       [
         id,
         sim.recentSwap,
         kyc.match,
+        number.verified,
+        locationVerified,
         score,
         status,
-        JSON.stringify(riskFactors),
       ]
     );
 
+    /* ===== RESPONSE ===== */
     const isLiveMode = process.env.USE_LIVE_NOKIA === "true";
-    const apiCallsSuccessful = [sim.apiSuccess, kyc.apiSuccess]
-      .filter(Boolean).length;
+    const apiCallsSuccessful = [
+      sim.apiSuccess,
+      kyc.apiSuccess,
+      number.apiSuccess,
+      deviceLocation.apiSuccess,
+      locationVerification.apiSuccess
+    ].filter(Boolean).length;
 
     res.json({
       sim,
       kyc,
+      number,
+      deviceLocation,
+      locationVerification,
+      locationVerified,
       trustScore: score,
       status,
-      riskFactors,
-      actionAllowed,
       explanation,
       metadata: {
         mode: isLiveMode ? "LIVE" : "DEMO",
         timestamp: new Date().toISOString(),
         apiCallsSuccessful: isLiveMode ? apiCallsSuccessful : null,
-        totalAPICalls: isLiveMode ? 2 : 0,
+        totalAPICalls: isLiveMode ? 5 : 0,
       },
     });
 
@@ -92,21 +135,29 @@ router.post("/check", async (req, res) => {
 ================================ */
 router.post("/simulate", async (req, res) => {
   try {
-    const { simSwap, kycMismatch } = req.body;
+    const {
+      simSwap,
+      kycMismatch,
+      numberVerified,
+      locationMismatch,
+    } = req.body;
 
-    const { score, status, riskFactors, actionAllowed } =
-      calculateTrustScore({
-        simSwap: simSwap || false,
-        kycMatch: !kycMismatch,
-      });
+    const locationVerified = !locationMismatch;
 
-    const explanation = await generateExplanation({
+    const { score, status } = calculateTrustScore({
       simSwap: simSwap || false,
       kycMatch: !kycMismatch,
+      numberVerified: numberVerified ?? true,
+      locationVerified,
+    });
+
+    const explanation = generateExplanation({
+      simSwap: simSwap || false,
+      kycMatch: !kycMismatch,
+      numberVerified: numberVerified ?? true,
+      locationVerified,
       score,
       status,
-      riskFactors,
-      context: "elderly_protection",
     });
 
     const id = uuidv4();
@@ -114,16 +165,17 @@ router.post("/simulate", async (req, res) => {
     await pool.query(
       `
       INSERT INTO risk_checks 
-      (id, sim_swap_result, kyc_result, trust_score, status, risk_factors)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (id, sim_swap_result, kyc_result, number_verification_result, location_verification_result, trust_score, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
       [
         id,
         simSwap || false,
         !kycMismatch,
+        numberVerified ?? true,
+        locationVerified,
         score,
         status,
-        JSON.stringify(riskFactors),
       ]
     );
 
@@ -131,10 +183,10 @@ router.post("/simulate", async (req, res) => {
       simulated: true,
       sim: { recentSwap: simSwap || false },
       kyc: { match: !kycMismatch },
+      number: { verified: numberVerified ?? true },
+      locationVerified,
       trustScore: score,
       status,
-      riskFactors,
-      actionAllowed,
       explanation,
     });
 
