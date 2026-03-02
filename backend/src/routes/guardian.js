@@ -7,7 +7,8 @@ import {
   checkSimSwap,
   checkKYC,
   checkNumberVerification,
-  checkLocationVerification, //nuevo
+  checkLocationVerification,
+  retrieveLocation, //nuevo
 } from "../services/nokiaService.js";
 
 const router = express.Router();
@@ -26,16 +27,42 @@ router.post("/check", async (req, res) => {
       radius,
       maxAge,
     });
+
+    // LOCATION RETRIEVAL
+    let locationResponse = null;
+    try {
+      locationResponse = await retrieveLocation(phone, {
+        maxAge: maxAge ?? 120,
+        maxSurface: 5000,
+      });
+    } catch (e) {
+      console.warn("retrieveLocation failed (non-blocking):", e?.message || e);
+    }
+
+    let userLocation = null;
+
+    if (locationResponse?.location?.area?.center) {
+      userLocation = {
+        lat: locationResponse.location.area.center.latitude,
+        lng: locationResponse.location.area.center.longitude,
+        radius: locationResponse.location.area.radius,
+        lastUpdate: locationResponse.location.lastLocationTime
+      };
+    }
+
     const { score, status } = calculateTrustScore({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
       numberVerified: number.verified,
+
+      locationAvailable: !!userLocation
     });
 
     const explanation = generateExplanation({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
       numberVerified: number.verified,
+      locationAvailable: !!userLocation,
       score,
       status,
     });
@@ -63,6 +90,7 @@ router.post("/check", async (req, res) => {
       kyc,
       number,
       location,
+      retrievedLocation: userLocation,
       trustScore: score,
       status,
       explanation,

@@ -210,3 +210,53 @@ export async function checkLocationVerification(
   }
 }
 
+//LOCATION RETRIEVAL
+// LOCATION RETRIEVAL (CAMARA)
+
+export async function retrieveLocation(phone, { maxAge = 120, maxSurface } = {}) {
+  if (process.env.USE_LIVE_NOKIA !== "true") {
+    console.log("Using DEMO Location Retrieval mode");
+    // Demo simple (Barcelona). Ajusta si quieres.
+    return {
+      location: {
+        area: {
+          areaType: "CIRCLE",
+          center: { latitude: 41.3874, longitude: 2.1686 },
+          radius: 1500,
+        },
+        lastLocationTime: new Date().toISOString(),
+      },
+    };
+  }
+
+  // En algunos hubs esto puede ser v0, v0.5, vwip, etc.
+  const apiVersion = process.env.LOCATION_RETRIEVAL_VERSION || "v0";
+
+  try {
+    const response = await axios.post(
+      `https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/location-retrieval/location-retrieval/${apiVersion}/retrieve`,
+      {
+        device: { phoneNumber: phone }, // CAMARA: E.164 con '+'
+        maxAge,                          // segundos (0 = fresh), opcional
+        ...(maxSurface ? { maxSurface } : {}), // m², opcional
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+          "X-Correlator": crypto.randomUUID(),
+        },
+      }
+    );
+
+    // Devuelve el payload tal cual (incluye area circle/polygon + lastLocationTime)
+    return { location: response.data };
+  } catch (error) {
+    console.error(
+      "Location Retrieval API error:",
+      error.response?.data || error.message
+    );
+    return { location: null };
+  }
+}
