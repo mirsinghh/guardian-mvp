@@ -2,12 +2,25 @@ import { useState } from "react";
 import axios from "axios";
 import "./index.css";
 import { TEST_USER, DEMO_SCENARIOS } from "./constants";
+import { 
+  CheckCircle2, 
+  AlertTriangle, 
+  FileText, 
+  AlertOctagon, 
+  Circle,
+  Check,
+  X,
+  ShieldCheck,
+  ShieldAlert
+} from "lucide-react";
 
 function App() {
   const [mode, setMode] = useState("user");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
 
   const checkGuardian = async () => {
     setLoading(true);
@@ -43,18 +56,34 @@ function App() {
   const loadHistory = async () => {
     const res = await axios.get("http://localhost:8080/guardian/history");
     setHistory(res.data);
+    setCurrentPage(1); // Reset to first page when loading new history
   };
 
   const resetCheck = () => setResult(null);
 
+  // Pagination logic
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = history.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(history.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+  // Loader Component
+  const Loader = () => (
+    <div className="flex items-center justify-center">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
+    <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* HEADER */}
       <header className="border-b border-gray-200 bg-white shadow-sm">
         <div className="max-w-6xl mx-auto px-6 py-4 flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight text-gray-900">Guardian</h1>
-            <p className="text-sm text-gray-500 mt-1">Elderly Protection System</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Guardian</h1>
+            <p className="text-sm text-gray-500 mt-1 font-light">Elderly Protection System</p>
           </div>
 
           <div className="flex gap-3">
@@ -89,23 +118,31 @@ function App() {
           <section className="lg:col-span-1 space-y-4">
             {/* Live Check */}
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
+              <h3 className="text-sm font-medium text-gray-600 mb-4 uppercase tracking-wider">
                 Live Verification
               </h3>
               <button
                 onClick={checkGuardian}
                 disabled={loading}
-                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-semibold hover:from-blue-700 hover:to-blue-800 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
-                {loading ? "Checking..." : `Check: ${TEST_USER.firstName}`}
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                    Checking...
+                  </>
+                ) : (
+                  `Check: ${TEST_USER.firstName}`
+                )}
               </button>
               {result?.apiMode && (
-                <div className={`mt-3 px-3 py-2 rounded-lg text-xs font-medium text-center ${
+                <div className={`mt-3 px-3 py-2 rounded-lg text-xs font-medium text-center flex items-center justify-center gap-1.5 ${
                   result.apiMode === 'LIVE' 
                     ? 'bg-green-50 text-green-700 border border-green-200' 
                     : 'bg-amber-50 text-amber-700 border border-amber-200'
                 }`}>
-                  {result.apiMode === 'LIVE' ? '🟢 LIVE APIs' : '🟡 DEMO Mode'} 
+                  <Circle className={`h-2 w-2 ${result.apiMode === 'LIVE' ? 'fill-green-600 text-green-600' : 'fill-amber-600 text-amber-600'}`} />
+                  {result.apiMode === 'LIVE' ? 'LIVE APIs' : 'DEMO Mode'} 
                   {result.apiCallsSuccessful && ` (${result.apiCallsSuccessful}/2 OK)`}
                 </div>
               )}
@@ -113,37 +150,37 @@ function App() {
 
             {/* Demo Scenarios */}
             <div className="rounded-2xl border border-gray-200 bg-white shadow-sm p-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-4 uppercase tracking-wide">
+              <h3 className="text-sm font-medium text-gray-600 mb-4 uppercase tracking-wider">
                 Demo Scenarios
               </h3>
               <div className="space-y-2">
                 <button
                   onClick={() => runSimulation("safe")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  ✅ Safe User
+                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <CheckCircle2 className="h-4 w-4 text-green-600" />} Safe User
                 </button>
                 <button
                   onClick={() => runSimulation("simswap")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  ⚠️ SIM Swap Detected
+                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <AlertTriangle className="h-4 w-4 text-amber-600" />} SIM Swap Detected
                 </button>
                 <button
                   onClick={() => runSimulation("kyc")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  📄 KYC Mismatch
+                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <FileText className="h-4 w-4 text-blue-600" />} KYC Mismatch
                 </button>
                 <button
                   onClick={() => runSimulation("maximum")}
                   disabled={loading}
-                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50"
+                  className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  🚨 Maximum Risk
+                  {loading ? <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div> : <AlertOctagon className="h-4 w-4 text-red-600" />} Maximum Risk
                 </button>
               </div>
             </div>
@@ -162,11 +199,8 @@ function App() {
           {/* RESULTS PANEL */}
           <section className="lg:col-span-2">
             <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
-          {/* RESULTS PANEL */}
-          <section className="lg:col-span-2">
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-sm">
               <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
-                <h3 className="font-semibold text-gray-900">Verification Results</h3>
+                <h3 className="font-medium text-gray-900">Verification Results</h3>
                 {result?.status && (
                   <span className={`px-3 py-1 rounded-full text-xs font-semibold uppercase ${
                     result.status === 'NORMAL' 
@@ -188,15 +222,15 @@ function App() {
                     </svg>
                   </div>
                   <p className="text-gray-500 font-medium">No verification executed</p>
-                  <p className="text-sm text-gray-400 mt-2">Click "Check" or run a simulation</p>
+                  <p className="text-sm text-gray-400 mt-2 font-light">Click "Check" or run a simulation</p>
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
                   {/* Trust Score */}
                   <div className="text-center p-6 bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl border border-blue-100">
-                    <p className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-2">Trust Score</p>
-                    <p className="text-5xl font-bold text-gray-900">{result.trustScore}</p>
-                    <p className="text-lg text-gray-500 mt-1">out of 100</p>
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Trust Score</p>
+                    <p className="text-5xl font-semibold text-gray-900">{result.trustScore}</p>
+                    <p className="text-base text-gray-500 mt-1 font-light">out of 100</p>
                   </div>
 
                   {/* API Signals Grid */}
@@ -209,11 +243,15 @@ function App() {
                     }`}>
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">SIM Swap</p>
-                          <p className={`text-xl font-bold mt-2 ${
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">SIM Swap</p>
+                          <p className={`text-xl font-semibold mt-2 flex items-center gap-2 ${
                             result.sim?.recentSwap ? 'text-red-700' : 'text-green-700'
                           }`}>
-                            {result.sim?.recentSwap ? "⚠️ Detected" : "✅ Not Detected"}
+                            {result.sim?.recentSwap ? (
+                              <><AlertTriangle className="h-5 w-5" /> Detected</>
+                            ) : (
+                              <><ShieldCheck className="h-5 w-5" /> Not Detected</>
+                            )}
                           </p>
                         </div>
                         {!result.sim?.apiSuccess && (
@@ -230,11 +268,15 @@ function App() {
                     }`}>
                       <div className="flex items-start justify-between">
                         <div>
-                          <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">KYC Match</p>
-                          <p className={`text-xl font-bold mt-2 ${
+                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">KYC Match</p>
+                          <p className={`text-xl font-semibold mt-2 flex items-center gap-2 ${
                             result.kyc?.match ? 'text-green-700' : 'text-amber-700'
                           }`}>
-                            {result.kyc?.match ? "✅ Matched" : "⚠️ Mismatch"}
+                            {result.kyc?.match ? (
+                              <><CheckCircle2 className="h-5 w-5" /> Matched</>
+                            ) : (
+                              <><AlertTriangle className="h-5 w-5" /> Mismatch</>
+                            )}
                           </p>
                         </div>
                         {!result.kyc?.apiSuccess && (
@@ -247,26 +289,26 @@ function App() {
                         <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
                           <p className="text-xs font-semibold text-gray-500 uppercase">Details</p>
                           <div className="grid grid-cols-3 gap-2 text-xs">
-                            <div className={`px-2 py-1 rounded text-center ${
+                            <div className={`px-2 py-1 rounded text-center flex items-center justify-center gap-1 ${
                               result.kyc.details.givenNameMatch 
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-red-100 text-red-700'
                             }`}>
-                              {result.kyc.details.givenNameMatch ? '✓' : '✗'} Name
+                              {result.kyc.details.givenNameMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />} Name
                             </div>
-                            <div className={`px-2 py-1 rounded text-center ${
+                            <div className={`px-2 py-1 rounded text-center flex items-center justify-center gap-1 ${
                               result.kyc.details.familyNameMatch 
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-red-100 text-red-700'
                             }`}>
-                              {result.kyc.details.familyNameMatch ? '✓' : '✗'} Surname
+                              {result.kyc.details.familyNameMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />} Surname
                             </div>
-                            <div className={`px-2 py-1 rounded text-center ${
+                            <div className={`px-2 py-1 rounded text-center flex items-center justify-center gap-1 ${
                               result.kyc.details.birthdateMatch 
                                 ? 'bg-green-100 text-green-700' 
                                 : 'bg-red-100 text-red-700'
                             }`}>
-                              {result.kyc.details.birthdateMatch ? '✓' : '✗'} Birth
+                              {result.kyc.details.birthdateMatch ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />} Birth
                             </div>
                           </div>
                         </div>
@@ -317,7 +359,7 @@ function App() {
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-semibold text-gray-700 mb-2">
+                          <p className="text-sm font-medium text-gray-700 mb-2">
                             AI Explanation {result.mcpUsed && <span className="text-xs text-purple-600">(MCP Enhanced)</span>}
                           </p>
                           <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
@@ -329,7 +371,7 @@ function App() {
                   {/* Risk Factors */}
                   {result.riskFactors && result.riskFactors.length > 0 && (
                     <div className="p-5 bg-gray-50 rounded-xl border border-gray-200">
-                      <p className="text-sm font-semibold text-gray-700 mb-3">Risk Factors</p>
+                      <p className="text-sm font-medium text-gray-700 mb-3">Risk Factors</p>
                       <ul className="space-y-2">
                         {result.riskFactors.map((factor, idx) => (
                           <li key={idx} className="flex items-start gap-2 text-sm text-gray-600">
@@ -349,22 +391,23 @@ function App() {
         {/* HISTORY TABLE */}
         {history.length > 0 && (
           <div className="mt-8 bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-              <h3 className="font-semibold text-gray-900">Verification History</h3>
+            <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+              <h3 className="font-medium text-gray-900">Verification History</h3>
+              <span className="text-sm text-gray-500">{history.length} total records</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Date</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Score</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">SIM Swap</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SIM Swap</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {history.map((item) => (
+                  {currentItems.map((item) => (
                     <tr key={item.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 text-sm text-gray-900">
                         {new Date(item.created_at).toLocaleString()}
@@ -381,14 +424,86 @@ function App() {
                           {item.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
-                        {item.sim_swap_result ? "⚠️ Yes" : "✅ No"}
+                      <td className="px-6 py-4 text-sm text-gray-600 flex items-center gap-1.5">
+                        {item.sim_swap_result ? (
+                          <>
+                            <AlertTriangle className="h-4 w-4 text-amber-600" />
+                            Yes
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                            No
+                          </>
+                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 flex items-center justify-between">
+                <div className="text-sm text-gray-600">
+                  Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, history.length)} of {history.length} results
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => paginate(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-3 py-1 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Previous
+                  </button>
+                  
+                  <div className="flex gap-1">
+                    {[...Array(totalPages)].map((_, idx) => {
+                      const pageNum = idx + 1;
+                      // Show first page, last page, current page, and pages around current
+                      if (
+                        pageNum === 1 ||
+                        pageNum === totalPages ||
+                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                      ) {
+                        return (
+                          <button
+                            key={pageNum}
+                            onClick={() => paginate(pageNum)}
+                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${
+                              currentPage === pageNum
+                                ? "bg-blue-600 text-white"
+                                : "border border-gray-300 text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      } else if (
+                        pageNum === currentPage - 2 ||
+                        pageNum === currentPage + 2
+                      ) {
+                        return (
+                          <span key={pageNum} className="px-2 py-1 text-gray-500">
+                            ...
+                          </span>
+                        );
+                      }
+                      return null;
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => paginate(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-1 rounded-lg border border-gray-300 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
