@@ -41,26 +41,20 @@ function App() {
   const resetCheck = () => setResult(null);
 
   const isSafe =
-    result?.status &&
-    result.status.toLowerCase().includes("safe");
+    result?.status && result.status.toLowerCase().includes("safe");
 
   return (
     <div className="min-h-screen bg-white text-gray-900 font-sans">
-
       {/* HEADER */}
       <header className="border-b border-gray-200 bg-white">
-        <div className="max-w-6xl mx-auto px-6 py-5 flex justify-between items-center">
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Guardian
-          </h1>
+        <div className="max-w-6xl mx-auto px-6 py-3 flex justify-between items-center">
+          <h1 className="text-2xl font-semibold tracking-tight">Guardian</h1>
 
           <div className="flex gap-3">
             <button
               onClick={() => setMode("user")}
               className={`px-4 py-2 rounded-full text-sm ${
-                mode === "user"
-                  ? "bg-black text-white"
-                  : "bg-gray-100"
+                mode === "user" ? "bg-black text-white" : "bg-gray-100"
               }`}
             >
               User Mode
@@ -69,9 +63,7 @@ function App() {
             <button
               onClick={() => setMode("dashboard")}
               className={`px-4 py-2 rounded-full text-sm ${
-                mode === "dashboard"
-                  ? "bg-black text-white"
-                  : "bg-gray-100"
+                mode === "dashboard" ? "bg-black text-white" : "bg-gray-100"
               }`}
             >
               Dashboard
@@ -82,21 +74,30 @@ function App() {
 
       {/* ================= USER MODE ================= */}
       {mode === "user" && (
-        <div className="flex flex-col items-center justify-start px-6 pt-16 pb-24 text-center">
-
-          <h2 className="text-4xl font-semibold mb-6">
+        <div className="flex flex-col items-center justify-start px-6 pt-8 pb-10 text-center">
+          <h2 className="text-4xl md:text-5xl font-semibold mb-3">
             Security Verification
           </h2>
 
-          <p className="text-gray-600 mb-12 text-lg max-w-md">
+          <p className="text-gray-700 mb-6 text-lg md:text-xl max-w-md leading-relaxed">
             Verify telecom security before performing an important action.
           </p>
+
+          {/* SIMPLE STEPS (for older users) */}
+          <div className="max-w-md w-full mb-6 text-left bg-gray-50 border border-gray-200 rounded-2xl p-5">
+            <p className="text-lg font-semibold mb-2">How it works:</p>
+            <ol className="text-lg text-gray-700 list-decimal pl-6 space-y-1">
+              <li>Press “Start Verification”.</li>
+              <li>Check the color and message.</li>
+              <li>Decide if you continue or not.</li>
+            </ol>
+          </div>
 
           {!result && (
             <button
               onClick={checkGuardian}
               disabled={loading}
-              className="w-full max-w-md py-7 text-xl font-semibold rounded-2xl 
+              className="w-full max-w-md py-6 text-xl md:text-2xl font-semibold rounded-2xl 
               bg-black text-white hover:opacity-80 transition disabled:opacity-50 shadow-sm"
             >
               {loading ? "Checking..." : "Start Verification"}
@@ -104,31 +105,76 @@ function App() {
           )}
 
           {result && (
-            <div className="mt-14 max-w-md w-full bg-white border border-gray-200 rounded-3xl p-12 shadow-sm">
-
+            <div className="mt-6 max-w-md w-full bg-white border border-gray-200 rounded-3xl p-8 md:p-10 shadow-sm">
               <div
-                className={`text-3xl font-semibold mb-6 ${
+                className={`text-2xl md:text-3xl font-semibold mb-4 ${
                   isSafe ? "text-green-600" : "text-red-600"
                 }`}
               >
                 {isSafe ? "Secure" : "Review Recommended"}
               </div>
 
-              <div className="text-[110px] font-semibold leading-none mb-6">
-                {result.trustScore}
+              {/* SCORE + ALERT ICON IF < 50 */}
+              <div className="flex items-center justify-center gap-4 mb-2">
+                <div className="text-[96px] md:text-[110px] font-semibold leading-none">
+                  {result.trustScore}
+                </div>
+
+                {result.trustScore < 50 && (
+                  <div className="flex items-center justify-center">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-14 h-14 text-red-500 animate-pulse"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-label="High risk warning"
+                      role="img"
+                    >
+                      <path d="M12 2L1 21h22L12 2zm0 6c.55 0 1 .45 1 1v5a1 1 0 11-2 0V9c0-.55.45-1 1-1zm0 10a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+                    </svg>
+                  </div>
+                )}
               </div>
 
-              <div className="text-gray-500 text-lg mb-8">
+              <div className="text-gray-500 text-base md:text-lg mb-5">
                 Trust Score (0 – 100)
               </div>
 
+              {/* TRAFFIC LIGHT MESSAGE */}
+              <div className="mt-2 mb-5">
+                {result.trustScore >= 75 && (
+                  <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-green-50 border border-green-200">
+                    <span className="text-2xl">✅</span>
+                    <span className="text-lg font-semibold text-green-800">
+                      All good. You can continue.
+                    </span>
+                  </div>
+                )}
+
+                {result.trustScore >= 50 && result.trustScore < 75 && (
+                  <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-yellow-50 border border-yellow-200">
+                    <span className="text-2xl">⚠️</span>
+                    <span className="text-lg font-semibold text-yellow-900">
+                      Please review before continuing.
+                    </span>
+                  </div>
+                )}
+
+                {result.trustScore < 50 && (
+                  <div className="inline-flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-50 border border-red-200">
+                    <span className="text-2xl">🚨</span>
+                    <span className="text-lg font-semibold text-red-800">
+                      High risk. Do not perform the action.
+                    </span>
+                  </div>
+                )}
+              </div>
+
               {/* PROGRESS BAR */}
-              <div className="h-4 bg-gray-200 rounded-full overflow-hidden mb-8">
+              <div className="h-4 bg-gray-200 rounded-full overflow-hidden mb-5">
                 <div
                   className={`h-full transition-all duration-700 ${
-                    isSafe
-                      ? "bg-green-500"
-                      : "bg-red-500"
+                    isSafe ? "bg-green-500" : "bg-red-500"
                   }`}
                   style={{ width: `${result.trustScore}%` }}
                 ></div>
@@ -136,16 +182,16 @@ function App() {
 
               <button
                 onClick={checkGuardian}
-                className="w-full py-5 text-lg rounded-2xl bg-black text-white hover:opacity-80 transition"
+                className="w-full py-5 text-lg md:text-xl rounded-2xl bg-black text-white hover:opacity-80 transition"
               >
-                Run New Verification
+                Verify again
               </button>
 
               <button
                 onClick={resetCheck}
-                className="w-full mt-4 py-3 text-sm rounded-2xl border border-gray-300"
+                className="w-full mt-3 py-4 text-base rounded-2xl border border-gray-300"
               >
-                Clear Result
+                Clear result
               </button>
             </div>
           )}
@@ -155,11 +201,8 @@ function App() {
       {/* ================= DASHBOARD ================= */}
       {mode === "dashboard" && (
         <main className="max-w-6xl mx-auto px-6 py-16">
-
           <div className="grid gap-6 lg:grid-cols-3">
-
             <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4 shadow-sm">
-
               <button
                 onClick={checkGuardian}
                 disabled={loading}
@@ -184,11 +227,8 @@ function App() {
             </div>
 
             <div className="lg:col-span-2 bg-white border border-gray-200 rounded-2xl shadow-sm">
-
               <div className="border-b border-gray-200 px-6 py-4 flex justify-between">
-                <h3 className="font-medium">
-                  Verification Results
-                </h3>
+                <h3 className="font-medium">Verification Results</h3>
                 <span className="text-sm text-gray-500">
                   {result ? result.status : "No Data"}
                 </span>
@@ -200,18 +240,14 @@ function App() {
                 </div>
               ) : (
                 <div className="p-6 space-y-6">
-
                   <div>
-                    <p className="text-sm text-gray-500">
-                      Trust Score
-                    </p>
+                    <p className="text-sm text-gray-500">Trust Score</p>
                     <p className="text-2xl font-semibold">
                       {result.trustScore} / 100
                     </p>
                   </div>
 
                   <div className="grid gap-4 md:grid-cols-2">
-
                     <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
                       <p className="text-sm text-gray-500">SIM Swap</p>
                       <p className="text-lg font-medium">
@@ -225,9 +261,7 @@ function App() {
                         {result.kyc?.match ? "Matched" : "Mismatch"}
                       </p>
                     </div>
-
                   </div>
-
                 </div>
               )}
             </div>
@@ -235,9 +269,7 @@ function App() {
 
           {history.length > 0 && (
             <div className="mt-10 bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-              <h3 className="mb-4 font-medium">
-                Verification History
-              </h3>
+              <h3 className="mb-4 font-medium">Verification History</h3>
 
               <table className="w-full text-sm">
                 <thead className="border-b border-gray-200 text-gray-500">
