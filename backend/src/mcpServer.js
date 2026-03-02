@@ -48,6 +48,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             firstName: { type: "string" },
             lastName: { type: "string" },
             birthDate: { type: "string" },
+            actionType: { 
+              type: "string", 
+              description: "Type of sensitive action: sms, transfer, password, location" 
+            },
           },
           required: ["phone", "firstName", "lastName", "birthDate"],
         },
@@ -64,7 +68,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   if (name === "calculate_guardian_risk") {
-    const { phone, firstName, lastName, birthDate } = args;
+    const { phone, firstName, lastName, birthDate, actionType } = args;
+
+    console.log(`   🤖 MCP Tool ejecutado para acción: ${actionType || "genérica"}`);
 
     try {
       const sim = await checkSimSwap(phone);

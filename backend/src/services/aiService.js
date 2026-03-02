@@ -4,34 +4,47 @@ import axios from "axios";
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
 
-export async function generateExplanation({
-  simSwap,
-  kycMatch,
-  score,
-  status,
-  riskFactors,
-  context,
-}) {
+  export async function generateExplanation({
+    simSwap,
+    kycMatch,
+    score,
+    status,
+    riskFactors,
+    context,
+    actionType, // 👈 NUEVO: Tipo de acción sensible
+  }) {
+    
   try {
+    // Mensajes contextuales según tipo de acción
+    const actionContexts = {
+      sms: "al intentar responder a un SMS sospechoso que parece ser del banco",
+      transfer: "al intentar realizar una transferencia bancaria",
+      password: "al intentar cambiar su contraseña o datos sensibles",
+      location: "al intentar acceder desde una nueva ubicación o dispositivo",
+    };
+
+    const actionContext = actionContexts[actionType] || "al realizar una acción sensible";
+
     const prompt = `
-You are a telecom fraud prevention analyst specialized in protecting elderly users.
+      You are a telecom fraud prevention analyst specialized in protecting elderly users.
 
-Context: ${context}
+      Context: ${context}
+      User Action: The user is attempting a sensitive operation - ${actionContext}
 
-Telecom Signals:
-- Recent SIM Swap: ${simSwap}
-- KYC Match: ${kycMatch}
-- Risk Factors: ${riskFactors?.join(", ") || "None"}
-- Trust Score: ${score}
-- Status: ${status}
+      Telecom Signals:
+      - Recent SIM Swap: ${simSwap}
+      - KYC Match: ${kycMatch}
+      - Risk Factors: ${riskFactors?.join(", ") || "None"}
+      - Trust Score: ${score}
+      - Status: ${status}
 
-Explain clearly:
-1. What happened technically.
-2. Why this is dangerous for an elderly user.
-3. What action should be taken immediately.
+      Explain clearly in Spanish (for an elderly user):
+      1. What happened technically with the telecom signals.
+      2. Why this is dangerous specifically for this action (${actionType || "generic"}).
+      3. What action should be taken immediately.
 
-Keep the explanation concise and professional.
-`;
+      Keep the explanation concise, empathetic, and actionable. Use simple language.
+    `;
 
     const response = await axios.post(
       GEMINI_URL,
