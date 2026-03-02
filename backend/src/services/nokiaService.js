@@ -139,6 +139,59 @@ export async function checkNumberVerification(phone) {
   }
 }
 
+// LOCATION RETRIEVAL - Get device location
+
+export async function getDeviceLocation(phone) {
+  if (process.env.USE_LIVE_NOKIA !== "true") {
+    console.log("Using DEMO Location Retrieval mode");
+    // Demo: return Barcelona coordinates
+    return {
+      latitude: 41.3851,
+      longitude: 2.1734,
+      accuracy: 50,
+      timestamp: new Date().toISOString(),
+      demo: true,
+    };
+  }
+
+  try {
+    const response = await axios.post(
+      "https://network-as-code.p-eu.rapidapi.com/passthrough/camara/v1/device-location/device-location/v0.3/retrieve",
+      {
+        device: { phoneNumber: phone },
+        maxAge: 60,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "X-RapidAPI-Key": process.env.RAPIDAPI_KEY,
+          "X-RapidAPI-Host": process.env.RAPIDAPI_HOST,
+          "X-Correlator": crypto.randomUUID(),
+        },
+      }
+    );
+
+    return {
+      latitude: response.data.latitude ?? null,
+      longitude: response.data.longitude ?? null,
+      accuracy: response.data.accuracy ?? null,
+      timestamp: response.data.timestamp ?? null,
+    };
+  } catch (error) {
+    console.error(
+      "Location Retrieval API error:",
+      error.response?.data || error.message
+    );
+    return {
+      latitude: null,
+      longitude: null,
+      accuracy: null,
+      timestamp: null,
+      error: error.response?.data || error.message,
+    };
+  }
+}
+
 // LOCATION VERIFICATION
 
 export async function checkLocationVerification(

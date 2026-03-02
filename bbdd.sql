@@ -14,6 +14,7 @@ CREATE TABLE risk_checks (
   sim_swap_result BOOLEAN,
   kyc_result BOOLEAN,
   number_verification_result BOOLEAN,
+  location_verification_result BOOLEAN,
   trust_score INT,
   status TEXT,
   created_at TIMESTAMP DEFAULT NOW()

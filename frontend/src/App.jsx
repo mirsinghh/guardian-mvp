@@ -12,6 +12,10 @@ function App() {
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
         phone: "+34600000000",
+        firstName: "John",
+        lastName: "Doe",
+        birthDate: "1990-01-01",
+        // latitude and longitude will be retrieved from device
       });
       setResult(res.data);
     } catch (error) {
@@ -29,6 +33,7 @@ function App() {
           simSwap: true,
           kycMismatch: false,
           numberVerified: true,
+          locationMismatch: false,
         }
       );
       setResult(res.data);
@@ -157,7 +162,23 @@ function App() {
                     {metricChip("SIM Swap", result.sim?.recentSwap, false)}
                     {metricChip("KYC Match", result.kyc?.match, true)}
                     {metricChip("Number Verified", result.number?.verified, true)}
+                    {metricChip("Location Verified", result.locationVerified, true)}
                   </div>
+
+                  {/* Device Location */}
+                  {result.deviceLocation && (
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700 mb-2">
+                        Device Location
+                      </p>
+                      <div className="bg-slate-50 p-4 rounded-xl text-xs space-y-1">
+                        <p><strong>Latitude:</strong> {result.deviceLocation.latitude ?? 'N/A'}</p>
+                        <p><strong>Longitude:</strong> {result.deviceLocation.longitude ?? 'N/A'}</p>
+                        <p><strong>Accuracy:</strong> {result.deviceLocation.accuracy ?? 'N/A'} meters</p>
+                        {result.deviceLocation.demo && <p className="text-amber-600"><strong>Mode:</strong> DEMO</p>}
+                      </div>
+                    </div>
+                  )}
 
                   {/* AI Explanation */}
                   {result.explanation && (
@@ -202,6 +223,7 @@ function App() {
                     <th className="pb-2">Score</th>
                     <th className="pb-2">Status</th>
                     <th className="pb-2">SIM Swap</th>
+                    <th className="pb-2">Location</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,6 +235,7 @@ function App() {
                       <td>{item.trust_score}</td>
                       <td>{item.status}</td>
                       <td>{item.sim_swap_result ? "YES" : "NO"}</td>
+                      <td>{item.location_verification_result ? "✓" : "✗"}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -7,35 +7,64 @@ import {
   checkSimSwap,
   checkKYC,
   checkNumberVerification,
-  checkLocationVerification, //nuevo
+  getDeviceLocation,
+  checkLocationVerification,
 } from "../services/nokiaService.js";
 
 const router = express.Router();
 
 router.post("/check", async (req, res) => {
   try {
-    const { phone, latitude, longitude, radius, maxAge } = req.body;
-    //nuevo
-    const sim = await checkSimSwap(phone);
-    const kyc = await checkKYC(phone);
-    const number = await checkNumberVerification(phone);
-   //nuevo
-    const location = await checkLocationVerification(phone, {
+    // const { phone, latitude, longitude, radius, maxAge } = req.body;
+
+    const {
+      phone,
+      firstName,
+      lastName,
+      birthDate,
       latitude,
       longitude,
       radius,
       maxAge,
+    } = req.body;
+
+    const sim = await checkSimSwap(phone);
+    const kyc = await checkKYC(phone, {
+      firstName,
+      lastName,
+      birthDate,
     });
+    const number = await checkNumberVerification(phone);
+    
+    // Get device location
+    const deviceLocation = await getDeviceLocation(phone);
+    
+    // Verify location if coordinates provided, otherwise use retrieved location
+    const locationToVerify = {
+      latitude: latitude ?? deviceLocation.latitude,
+      longitude: longitude ?? deviceLocation.longitude,
+      radius: radius ?? 1500,
+      maxAge: maxAge ?? 120,
+    };
+    
+    const locationVerification = await checkLocationVerification(phone, locationToVerify);
+    
+    // Determine if location is verified based on result
+    const locationVerified = locationVerification.verificationResult === "TRUE" || 
+                            locationVerification.verificationResult === "PARTIAL";
+    
     const { score, status } = calculateTrustScore({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
       numberVerified: number.verified,
+      locationVerified,
     });
 
     const explanation = generateExplanation({
       simSwap: sim.recentSwap,
       kycMatch: kyc.match,
       numberVerified: number.verified,
+      locationVerified,
       score,
       status,
     });
@@ -45,14 +74,15 @@ router.post("/check", async (req, res) => {
     await pool.query(
       `
       INSERT INTO risk_checks 
-      (id, sim_swap_result, kyc_result, number_verification_result, trust_score, status)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (id, sim_swap_result, kyc_result, number_verification_result, location_verification_result, trust_score, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
       [
         id,
         sim.recentSwap,
         kyc.match,
         number.verified,
+        locationVerified,
         score,
         status,
       ]
@@ -62,7 +92,9 @@ router.post("/check", async (req, res) => {
       sim,
       kyc,
       number,
-      location,
+      deviceLocation,
+      locationVerification,
+      locationVerified,
       trustScore: score,
       status,
       explanation,
@@ -76,18 +108,22 @@ router.post("/check", async (req, res) => {
 
 router.post("/simulate", async (req, res) => {
   try {
-    const { simSwap, kycMismatch, numberVerified } = req.body;
+    const { simSwap, kycMismatch, numberVerified, locationMismatch } = req.body;
+
+    const locationVerified = !locationMismatch;
 
     const { score, status } = calculateTrustScore({
       simSwap: simSwap || false,
       kycMatch: !kycMismatch,
       numberVerified: numberVerified ?? true,
+      locationVerified,
     });
 
     const explanation = generateExplanation({
       simSwap: simSwap || false,
       kycMatch: !kycMismatch,
       numberVerified: numberVerified ?? true,
+      locationVerified,
       score,
       status,
     });
@@ -97,31 +133,26 @@ router.post("/simulate", async (req, res) => {
     await pool.query(
       `
       INSERT INTO risk_checks 
-      (id, sim_swap_result, kyc_result, number_verification_result, trust_score, status)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      (id, sim_swap_result, kyc_result, number_verification_result, location_verification_result, trust_score, status)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
       `,
       [
         id,
         simSwap || false,
         !kycMismatch,
         numberVerified ?? true,
+        locationVerified,
         score,
         status,
       ]
     );
-
-    // res.json({
-    //   simulated: true,
-    //   trustScore: score,
-    //   status,
-    //   explanation,
-    // });
 
     res.json({
       simulated: true,
       sim: { recentSwap: simSwap || false },
       kyc: { match: !kycMismatch },
       number: { verified: numberVerified ?? true },
+      locationVerified,
       trustScore: score,
       status,
       explanation,

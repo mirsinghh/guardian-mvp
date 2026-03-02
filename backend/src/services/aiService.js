@@ -2,6 +2,7 @@ export function generateExplanation({
   simSwap,
   kycMatch,
   numberVerified,
+  locationVerified,
   score,
   status,
 }) {
@@ -22,6 +23,12 @@ export function generateExplanation({
   if (!numberVerified) {
     reasons.push(
       "The phone number could not be verified successfully."
+    );
+  }
+
+  if (locationVerified === false) {
+    reasons.push(
+      "The device location verification failed. The device may not be in the expected location, indicating potential unauthorized access."
     );
   }
 
