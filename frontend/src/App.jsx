@@ -173,7 +173,7 @@ function App() {
                 </h2>
 
                 <p className="text-gray-600 mb-8 text-lg md:text-xl max-w-2xl leading-relaxed text-center font-light">
-                  Protect yourself before performing sensitive actions. Select what you want to do:
+                  Protect our elderlys before performing sensitive actions. Select what you want to do:
                 </p>
 
                 {/* SENSITIVE ACTIONS GRID */}
