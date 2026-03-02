@@ -6,6 +6,7 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [location, setLocation] = useState(null);
 
   const checkGuardian = async () => {
     setLoading(true);
@@ -48,6 +49,32 @@ function App() {
       console.error(error);
       alert("Error loading history");
     }
+  };
+
+  const verifyLocation = () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation not supported by your browser");
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await axios.post(
+            "http://localhost:8080/guardian/verify-location",
+            { latitude, longitude }
+          );
+          setLocation({ coords: { latitude, longitude }, server: res.data });
+        } catch (error) {
+          console.error(error);
+          alert("Error verifying location");
+        }
+      },
+      (err) => {
+        alert("Unable to get location: " + err.message);
+      }
+    );
   };
 
   const statusBadge = (status) => {
@@ -120,6 +147,13 @@ function App() {
               >
                 Load History
               </button>
+
+              <button
+                onClick={verifyLocation}
+                className="w-full rounded-xl border border-slate-200 bg-white py-2.5 text-sm font-semibold hover:bg-slate-50"
+              >
+                Verify Location
+              </button>
             </div>
           </section>
 
@@ -181,6 +215,22 @@ function App() {
                     </pre>
                   </div>
 
+                  {location && (
+                    <div className="mt-4">
+                      <p className="text-sm font-semibold text-slate-700 mb-1">
+                        Location Check
+                      </p>
+                      <p className="text-xs text-slate-600">
+                       coords: {location.coords.latitude.toFixed(6)}, {location.coords.longitude.toFixed(6)}
+                      </p>
+                      <p className="text-xs text-slate-500 mb-2">
+                        Server response
+                      </p>
+                      <pre className="bg-slate-50 p-4 rounded-xl text-xs overflow-auto">
+                        {JSON.stringify(location.server, null, 2)}
+                      </pre>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -189,36 +239,77 @@ function App() {
 
         {/* HISTORY TABLE */}
         {history.length > 0 && (
-          <div className="mt-10 rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
-            <h2 className="text-sm font-semibold text-slate-900 mb-4">
-              Risk Check History
-            </h2>
+          <>
+            <div className="mt-10 rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+              <h2 className="text-sm font-semibold text-slate-900 mb-4">
+                Risk Check History
+              </h2>
 
-            <div className="overflow-auto">
-              <table className="w-full text-sm">
-                <thead className="text-left border-b">
-                  <tr>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Score</th>
-                    <th className="pb-2">Status</th>
-                    <th className="pb-2">SIM Swap</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {history.map((item) => (
-                    <tr key={item.id} className="border-b">
-                      <td className="py-2">
-                        {new Date(item.created_at).toLocaleString()}
-                      </td>
-                      <td>{item.trust_score}</td>
-                      <td>{item.status}</td>
-                      <td>{item.sim_swap_result ? "YES" : "NO"}</td>
+              {/* bar chart */}
+              <div className="overflow-x-auto">
+                <svg
+                  className="block"
+                  height={150}
+                  width={Math.max(history.length * 30, 300)}
+                >
+                  {history.map((item, idx) => {
+                    const score = item.trust_score;
+                    const barHeight = (score / 100) * 140; // leave some padding
+                    let color = "#f87171"; // red
+                    if (score > 75) color = "#34d399"; // green
+                    else if (score > 50) color = "#fbbf24"; // yellow
+                    const x = idx * 30 + 5;
+                    const y = 140 - barHeight + 5;
+                    return (
+                      <g key={item.id}>
+                        <rect
+                          x={x}
+                          y={y}
+                          width={20}
+                          height={barHeight}
+                          fill={color}
+                        />
+                        <text
+                          x={x + 10}
+                          y={150}
+                          fontSize="8"
+                          fill="#374151"
+                          textAnchor="middle"
+                        >
+                          {new Date(item.created_at).toLocaleDateString()}
+                        </text>
+                      </g>
+                    );
+                  })}
+                </svg>
+              </div>
+
+              <div className="overflow-auto">
+                <table className="w-full text-sm">
+                  <thead className="text-left border-b">
+                    <tr>
+                      <th className="pb-2">Date</th>
+                      <th className="pb-2">Score</th>
+                      <th className="pb-2">Status</th>
+                      <th className="pb-2">SIM Swap</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {history.map((item) => (
+                      <tr key={item.id} className="border-b">
+                        <td className="py-2">
+                          {new Date(item.created_at).toLocaleString()}
+                        </td>
+                        <td>{item.trust_score}</td>
+                        <td>{item.status}</td>
+                        <td>{item.sim_swap_result ? "YES" : "NO"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
+          </>
         )}
 
       </main>

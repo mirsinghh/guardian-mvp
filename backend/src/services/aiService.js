@@ -9,7 +9,7 @@ export function generateExplanation({
 
   if (simSwap) {
     reasons.push(
-      "A recent SIM swap was detected, which is a strong indicator of potential identity fraud."
+      "A recent SIM swap was detected, which is a strong indicator of potential identity fraud. "
     );
   }
 
