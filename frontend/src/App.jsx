@@ -6,12 +6,18 @@ function App() {
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [history, setHistory] = useState([]);
+  const [location, setLocation] = useState(null);
 
-  const checkGuardian = async () => {
+  const checkGuardian = async (coords = null) => {
     setLoading(true);
     try {
       const res = await axios.post("http://localhost:8080/guardian/check", {
-        phone: "+34600000000",
+        phone: "+99999991000",
+        firstName: "John",
+        lastName: "Doe",
+        birthDate: "1990-01-01",
+        latitude: coords?.latitude,
+        longitude: coords?.longitude,
       });
       setResult(res.data);
     } catch (error) {
@@ -144,6 +150,31 @@ function App() {
               ) : (
                 <div className="px-6 py-6 space-y-6">
 
+                  {/* API Status Indicator */}
+                  {result.metadata && (
+                    <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                      <div className="flex-1">
+                        <p className="text-xs font-medium text-slate-600">API Mode</p>
+                        <p className="text-sm font-semibold">
+                          {result.metadata.mode}
+                          {result.metadata.mode === "LIVE" && (
+                            <span className="ml-2 text-xs text-emerald-600">
+                              ({result.metadata.apiCallsSuccessful}/{result.metadata.totalAPICalls} APIs OK)
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <span className={[
+                        "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+                        result.metadata.mode === "LIVE" 
+                          ? "bg-emerald-100 text-emerald-700" 
+                          : "bg-amber-100 text-amber-700"
+                      ].join(" ")}>
+                        {result.metadata.mode === "LIVE" ? "🟢" : "🟡"}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Trust Score */}
                   <div>
                     <p className="text-sm text-slate-600">Trust Score</p>
@@ -157,7 +188,41 @@ function App() {
                     {metricChip("SIM Swap", result.sim?.recentSwap, false)}
                     {metricChip("KYC Match", result.kyc?.match, true)}
                     {metricChip("Number Verified", result.number?.verified, true)}
+                    {result.locationVerified !== undefined && 
+                      metricChip("Location Verified", result.locationVerified, true)
+                    }
                   </div>
+
+                  {/* API Status Details (LIVE mode only) */}
+                  {result.metadata?.mode === "LIVE" && (
+                    <div className="p-4 rounded-xl bg-blue-50 border border-blue-200">
+                      <p className="text-xs font-semibold text-blue-900 mb-2">
+                        Nokia API Status
+                      </p>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span>{result.sim?.apiSuccess ? "✅" : "❌"}</span>
+                          <span className="text-slate-700">SIM Swap</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span>{result.kyc?.apiSuccess ? "✅" : "❌"}</span>
+                          <span className="text-slate-700">KYC Match</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span>{result.number?.apiSuccess ? "✅" : "❌"}</span>
+                          <span className="text-slate-700">Number Verify</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span>{result.deviceLocation?.apiSuccess ? "✅" : "❌"}</span>
+                          <span className="text-slate-700">Location Get</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span>{result.locationVerification?.apiSuccess ? "✅" : "❌"}</span>
+                          <span className="text-slate-700">Location Verify</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   {/* AI Explanation */}
                   {result.explanation && (

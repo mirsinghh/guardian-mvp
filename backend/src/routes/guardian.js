@@ -97,6 +97,15 @@ router.post("/check", async (req, res) => {
     );
 
     /* ===== RESPONSE ===== */
+    const isLiveMode = process.env.USE_LIVE_NOKIA === "true";
+    const apiCallsSuccessful = [
+      sim.apiSuccess,
+      kyc.apiSuccess,
+      number.apiSuccess,
+      deviceLocation.apiSuccess,
+      locationVerification.apiSuccess
+    ].filter(Boolean).length;
+
     res.json({
       sim,
       kyc,
@@ -107,6 +116,12 @@ router.post("/check", async (req, res) => {
       trustScore: score,
       status,
       explanation,
+      metadata: {
+        mode: isLiveMode ? "LIVE" : "DEMO",
+        timestamp: new Date().toISOString(),
+        apiCallsSuccessful: isLiveMode ? apiCallsSuccessful : null,
+        totalAPICalls: isLiveMode ? 5 : 0,
+      },
     });
 
   } catch (error) {

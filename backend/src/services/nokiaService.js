@@ -5,8 +5,8 @@ import crypto from "crypto";
 
 export async function checkSimSwap(phone) {
   if (process.env.USE_LIVE_NOKIA !== "true") {
-    console.log("Using DEMO SIM Swap mode");
-    return { recentSwap: false };
+    console.log("[DEMO MODE] SIM Swap");
+    return { recentSwap: false, isDemo: true };
   }
 
   try {
@@ -25,13 +25,16 @@ export async function checkSimSwap(phone) {
       }
     );
 
+    console.log("[LIVE API] SIM Swap SUCCESS:", response.data);
     return {
       recentSwap: response.data.swapped,
+      isDemo: false,
+      apiSuccess: true,
     };
 
   } catch (error) {
-    console.error("SIM Swap API error:", error.response?.data || error.message);
-    return { recentSwap: false };
+    console.error("[LIVE API] SIM Swap ERROR:", error.response?.data || error.message);
+    return { recentSwap: false, isDemo: false, apiSuccess: false, error: error.message };
   }
 }
 
@@ -70,8 +73,8 @@ export async function getLatestSimChange(phone) {
 export async function checkKYC(phone, userData) {
 
   if (process.env.USE_LIVE_NOKIA !== "true") {
-    console.log("Using DEMO KYC mode");
-    return { match: true };
+    console.log("[DEMO MODE] KYC Match");
+    return { match: true, isDemo: true };
   }
 
   try {
@@ -93,13 +96,16 @@ export async function checkKYC(phone, userData) {
       }
     );
 
+    console.log("[LIVE API] KYC Match SUCCESS:", response.data);
     return {
       match: response.data.match ?? false,
+      isDemo: false,
+      apiSuccess: true,
     };
 
   } catch (error) {
-    console.error("KYC API error:", error.response?.data || error.message);
-    return { match: false };
+    console.error("[LIVE API] KYC Match ERROR:", error.response?.data || error.message);
+    return { match: false, isDemo: false, apiSuccess: false, error: error.message };
   }
 }
 
@@ -109,8 +115,8 @@ export async function checkKYC(phone, userData) {
 export async function checkNumberVerification(phone) {
 
   if (process.env.USE_LIVE_NOKIA !== "true") {
-    console.log("Using DEMO Number Verification mode");
-    return { verified: true };
+    console.log("[DEMO MODE] Number Verification");
+    return { verified: true, isDemo: true };
   }
 
   try {
@@ -129,13 +135,16 @@ export async function checkNumberVerification(phone) {
       }
     );
 
+    console.log("[LIVE API] Number Verification SUCCESS:", response.data);
     return {
       verified: response.data.verified ?? false,
+      isDemo: false,
+      apiSuccess: true,
     };
 
   } catch (error) {
-    console.error("Number Verification API error:", error.response?.data || error.message);
-    return { verified: false };
+    console.error("[LIVE API] Number Verification ERROR:", error.response?.data || error.message);
+    return { verified: false, isDemo: false, apiSuccess: false, error: error.message };
   }
 }
 
@@ -143,14 +152,14 @@ export async function checkNumberVerification(phone) {
 
 export async function getDeviceLocation(phone) {
   if (process.env.USE_LIVE_NOKIA !== "true") {
-    console.log("Using DEMO Location Retrieval mode");
+    console.log("[DEMO MODE] Location Retrieval");
     // Demo: return Barcelona coordinates
     return {
       latitude: 41.3851,
       longitude: 2.1734,
       accuracy: 50,
       timestamp: new Date().toISOString(),
-      demo: true,
+      isDemo: true,
     };
   }
 
@@ -171,15 +180,18 @@ export async function getDeviceLocation(phone) {
       }
     );
 
+    console.log("[LIVE API] Location Retrieval SUCCESS:", response.data);
     return {
       latitude: response.data.latitude ?? null,
       longitude: response.data.longitude ?? null,
       accuracy: response.data.accuracy ?? null,
       timestamp: response.data.timestamp ?? null,
+      isDemo: false,
+      apiSuccess: true,
     };
   } catch (error) {
     console.error(
-      "Location Retrieval API error:",
+      "[LIVE API] Location Retrieval ERROR:",
       error.response?.data || error.message
     );
     return {
@@ -187,6 +199,8 @@ export async function getDeviceLocation(phone) {
       longitude: null,
       accuracy: null,
       timestamp: null,
+      isDemo: false,
+      apiSuccess: false,
       error: error.response?.data || error.message,
     };
   }
@@ -200,7 +214,7 @@ export async function checkLocationVerification(
 ) {
   // DEMO mode si no hi ha live
   if (process.env.USE_LIVE_NOKIA !== "true") {
-    console.log("Using DEMO Location Verification mode");
+    console.log("[DEMO MODE] Location Verification");
     // Per demo: si la lat és 0, simulem frau (FALSE). Si no, TRUE.
     const isFraudDemo = latitude === 0 && longitude === 0;
 
@@ -208,7 +222,7 @@ export async function checkLocationVerification(
       verificationResult: isFraudDemo ? "FALSE" : "TRUE", // "TRUE" | "FALSE" | "PARTIAL"
       matchRate: isFraudDemo ? 10 : 100,
       lastLocationTime: new Date().toISOString(),
-      demo: true,
+      isDemo: true,
     };
   }
 
@@ -244,20 +258,25 @@ export async function checkLocationVerification(
       }
     );
 
+    console.log("[LIVE API] Location Verification SUCCESS:", response.data);
     return {
       verificationResult: response.data.verificationResult ?? null,
       matchRate: response.data.matchRate ?? null,
       lastLocationTime: response.data.lastLocationTime ?? null,
+      isDemo: false,
+      apiSuccess: true,
     };
   } catch (error) {
     console.error(
-      "Location Verification API error:",
+      "[LIVE API] Location Verification ERROR:",
       error.response?.data || error.message
     );
     return {
       verificationResult: null,
       matchRate: null,
       lastLocationTime: null,
+      isDemo: false,
+      apiSuccess: false,
       error: error.response?.data || error.message,
     };
   }
