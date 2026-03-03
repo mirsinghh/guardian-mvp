@@ -405,79 +405,83 @@ function App() {
                 
                 {/* MCP GENERATED ACTION */}
                 {mcpAction && (
-                  <div className="mb-6 p-5 rounded-xl bg-white border-2 border-gray-300 shadow-sm">
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                  <div className="mb-4 p-4 rounded-lg bg-white border border-gray-200 shadow-sm">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${
                         mcpAction.isFraudulent 
-                          ? "bg-red-100 text-red-700" 
-                          : "bg-green-100 text-green-700"
+                          ? "bg-red-50 text-red-700 border border-red-200" 
+                          : "bg-green-50 text-green-700 border border-green-200"
                       }`}>
-                        {mcpAction.isFraudulent ? "⚠ FRAUDULENT SCENARIO" : "✓ SAFE SCENARIO"}
+                        {mcpAction.isFraudulent ? (
+                          <><AlertTriangle className="w-3.5 h-3.5" /> FRAUDULENT SCENARIO</>
+                        ) : (
+                          <><CheckCircle2 className="w-3.5 h-3.5" /> SAFE SCENARIO</>
+                        )}
                       </div>
                     </div>
-                    <p className="text-sm font-medium text-gray-700 mb-1">Generated Content:</p>
-                    <p className="text-gray-900 leading-relaxed">{mcpAction.content}</p>
+                    <p className="text-xs font-medium text-gray-600 mb-1.5 uppercase tracking-wide">Generated Content</p>
+                    <p className="text-sm text-gray-900 leading-relaxed">{mcpAction.content}</p>
                   </div>
                 )}
                 
                 {/* MCP PROCESS STEPS */}
                 {mcpSteps.length > 0 && (
-                  <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl shadow-md overflow-hidden">
+                  <div className="mb-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-lg overflow-hidden">
                     <button
                       onClick={() => setMcpCollapsed(!mcpCollapsed)}
-                      className="w-full p-4 flex items-center justify-between hover:bg-blue-100 transition-colors"
+                      className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-blue-100 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
-                        <span className="font-semibold text-blue-900">
+                        <div className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse"></div>
+                        <span className="text-sm font-medium text-blue-900">
                           MCP Intelligent Process ({mcpSteps.length} steps)
                         </span>
                       </div>
-                      <span className="text-blue-600">
+                      <span className="text-blue-600 text-sm">
                         {mcpCollapsed ? "▼" : "▲"}
                       </span>
                     </button>
                     
                     {!mcpCollapsed && (
-                      <div className="p-4 pt-0 space-y-3">
+                      <div className="p-3 pt-0 space-y-2">
                         {mcpSteps.map((step, index) => (
                           <div 
                             key={index}
-                            className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm animate-fadeIn"
+                            className="bg-white rounded-md p-3 border border-blue-200 animate-fadeIn"
                           >
-                            <div className="flex items-start gap-3">
-                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                            <div className="flex items-start gap-2.5">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center font-semibold text-xs">
                                 {step.step}
                               </div>
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <p className="font-semibold text-gray-900">{step.name}</p>
+                                <div className="flex items-center gap-2 mb-1.5">
+                                  <p className="text-sm font-medium text-gray-900">{step.name}</p>
                                   {step.status === "completed" && (
-                                    <span className="text-green-600 text-sm">✓</span>
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-green-600" />
                                   )}
                                 </div>
                                 {step.result && (
-                                  <div className="text-sm text-gray-600 bg-gray-50 rounded p-2 mt-2">
+                                  <div className="text-xs text-gray-600 bg-gray-50 rounded p-2 mt-1.5 space-y-1">
                                     {step.result.message && (
-                                      <p className="italic">{step.result.message}</p>
+                                      <p className="italic text-gray-700">{step.result.message}</p>
                                     )}
                                     {step.result.verificationsNeeded && (
-                                      <p><strong>Verifications:</strong> {step.result.verificationsNeeded.join(", ")}</p>
+                                      <p><span className="font-medium text-gray-700">Verifications:</span> {step.result.verificationsNeeded.join(", ")}</p>
                                     )}
                                     {step.result.riskLevel && (
-                                      <p><strong>Risk Level:</strong> <span className={`font-semibold ${
+                                      <p><span className="font-medium text-gray-700">Risk Level:</span> <span className={`font-semibold ${
                                         step.result.riskLevel === "high" ? "text-red-600" :
                                         step.result.riskLevel === "medium" ? "text-amber-600" : "text-green-600"
                                       }`}>{step.result.riskLevel.toUpperCase()}</span></p>
                                     )}
                                     {step.result.indicators && step.result.indicators.length > 0 && (
-                                      <p><strong>Indicators:</strong> {step.result.indicators.join(", ")}</p>
+                                      <p><span className="font-medium text-gray-700">Indicators:</span> {step.result.indicators.join(", ")}</p>
                                     )}
                                     {step.result.reasoning && (
-                                      <p className="mt-1 italic text-gray-700">{step.result.reasoning}</p>
+                                      <p className="mt-1 italic text-gray-600">{step.result.reasoning}</p>
                                     )}
                                     {step.result.score !== undefined && (
-                                      <p><strong>Trust Score:</strong> {step.result.score}/100 → {step.result.status}</p>
+                                      <p><span className="font-medium text-gray-700">Trust Score:</span> {step.result.score}/100 → {step.result.status}</p>
                                     )}
                                   </div>
                                 )}
@@ -491,86 +495,41 @@ function App() {
                 )}
 
                 {/* RESULT CARD */}
-                <div className="bg-white border border-gray-200 rounded-3xl p-8 md:p-10 shadow-lg">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                   
-                  <div
-                    className={`text-2xl md:text-3xl font-semibold mb-4 text-center ${
-                      result.trustScore >= 75
-                        ? "text-green-600"
-                        : result.trustScore >= 50
-                        ? "text-amber-600"
-                        : "text-red-600"
-                    }`}
-                  >
-                    {result.trustScore >= 75
-                      ? "✓ Secure"
-                      : result.trustScore >= 50
-                      ? "⚠ Review Recommended"
-                      : "⛔ High Risk"}
-                  </div>
-
-                  {/* SCORE + ALERT ICON */}
-                  <div className="flex items-center justify-center gap-4 mb-4">
-                    <div className="text-[96px] md:text-[110px] font-semibold leading-none text-gray-900">
+                  {/* SCORE + STATUS */}
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <div className="text-5xl md:text-6xl font-bold leading-none text-gray-900">
                       {result.trustScore}
                     </div>
-
-                    {result.trustScore < 50 && (
-                      <AlertOctagon className="w-14 h-14 text-red-500 animate-pulse" />
+                    {result.trustScore >= 75 ? (
+                      <ShieldCheck className="w-8 h-8 text-green-600" />
+                    ) : result.trustScore >= 50 ? (
+                      <AlertTriangle className="w-8 h-8 text-amber-600" />
+                    ) : (
+                      <ShieldAlert className="w-8 h-8 text-red-600 animate-pulse" />
                     )}
                   </div>
 
-                  <div className="text-gray-500 text-lg mb-6 font-light text-center">
-                    Trust Score (0 – 100)
-                  </div>
-
-                  {/* TRAFFIC LIGHT MESSAGE */}
-                  <div className="mb-6 flex justify-center">
-                    {result.trustScore >= 75 && (
-                      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-green-50 border-2 border-green-200">
-                        <CheckCircle2 className="w-7 h-7 text-green-600" />
-                        <div>
-                          <p className="text-lg font-semibold text-green-800">
-                            All good. You can continue.
-                          </p>
-                          <p className="text-sm text-green-700 mt-1">
-                            Your identity is verified and secure.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {result.trustScore >= 50 && result.trustScore < 75 && (
-                      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-amber-50 border-2 border-amber-200">
-                        <AlertTriangle className="w-7 h-7 text-amber-600" />
-                        <div>
-                          <p className="text-lg font-semibold text-amber-900">
-                            Please review before continuing.
-                          </p>
-                          <p className="text-sm text-amber-800 mt-1">
-                            Some verification signals need attention.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-
-                    {result.trustScore < 50 && (
-                      <div className="inline-flex items-center gap-3 px-6 py-4 rounded-2xl bg-red-50 border-2 border-red-200">
-                        <ShieldAlert className="w-7 h-7 text-red-600" />
-                        <div>
-                          <p className="text-lg font-semibold text-red-800">
-                            High risk detected. Do NOT continue.
-                          </p>
-                          <p className="text-sm text-red-700 mt-1">
-                            Your identity may be compromised. Contact support.
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                  <div className="text-center mb-4">
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Trust Score</p>
+                    <p className={`text-sm font-semibold ${
+                      result.trustScore >= 75
+                        ? "text-green-700"
+                        : result.trustScore >= 50
+                        ? "text-amber-700"
+                        : "text-red-700"
+                    }`}>
+                      {result.trustScore >= 75
+                        ? "Secure"
+                        : result.trustScore >= 50
+                        ? "Review Recommended"
+                        : "High Risk"}
+                    </p>
                   </div>
 
                   {/* PROGRESS BAR */}
-                  <div className="h-5 bg-gray-200 rounded-full overflow-hidden mb-8 shadow-inner">
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-4">
                     <div
                       className={`h-full transition-all duration-700 ${
                         result.trustScore >= 75
@@ -583,18 +542,63 @@ function App() {
                     ></div>
                   </div>
 
+                  {/* TRAFFIC LIGHT MESSAGE */}
+                  <div className="mb-4">
+                    {result.trustScore >= 75 && (
+                      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-green-50 border border-green-200">
+                        <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-green-800">
+                            All good. You can continue.
+                          </p>
+                          <p className="text-xs text-green-700 mt-0.5">
+                            Your identity is verified and secure.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.trustScore >= 50 && result.trustScore < 75 && (
+                      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-50 border border-amber-200">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-amber-900">
+                            Please review before continuing.
+                          </p>
+                          <p className="text-xs text-amber-800 mt-0.5">
+                            Some verification signals need attention.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {result.trustScore < 50 && (
+                      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-red-50 border border-red-200">
+                        <ShieldAlert className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-red-800">
+                            High risk detected. Do NOT continue.
+                          </p>
+                          <p className="text-xs text-red-700 mt-0.5">
+                            Your identity may be compromised. Contact support.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   {/* AI EXPLANATION */}
                   {result.explanation && (
-                    <div className="mb-6 p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
-                          <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="mb-4 p-3 bg-gradient-to-br from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                      <div className="flex items-start gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
                         </div>
 
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-700 mb-2">
+                          <p className="text-xs font-medium text-gray-700 mb-1.5">
                             AI Explanation {result.mcpUsed && <span className="text-xs text-purple-600">(MCP Enhanced)</span>}
                           </p>
 
@@ -613,7 +617,7 @@ function App() {
                             const isBullet = (line) => /^(\*|-|•|\d+[.)])\s+/.test(line.trim());
 
                             return (
-                              <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                              <div className="text-xs text-gray-700 leading-relaxed space-y-1.5">
                                 {blocks.map((block, idx) => {
                                   const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
                                   const looksLikeList = lines.length > 1 && lines.every(isBullet);
@@ -654,7 +658,7 @@ function App() {
 
                   <button
                     onClick={resetCheck}
-                    className="w-full py-5 text-lg rounded-2xl bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all font-semibold"
+                    className="w-full py-3 text-sm rounded-lg bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all font-medium"
                   >
                     Check Another Action
                   </button>

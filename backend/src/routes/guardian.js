@@ -502,7 +502,8 @@ router.post("/mcp-check", async (req, res) => {
     steps[0].result = {
       content: randomAction.content,
       type: randomAction.actionType,
-      expectedFraud: randomAction.isFraudulent
+      expectedFraud: randomAction.isFraudulent,
+      message: `${actionType.toUpperCase()}: ${randomAction.content.substring(0, 100)}${randomAction.content.length > 100 ? '...' : ''}`
     };
     
     console.log(`   ✅ Contenido generado: "${randomAction.content.substring(0, 80)}..."`);
@@ -569,10 +570,20 @@ router.post("/mcp-check", async (req, res) => {
       });
       
       steps[2].status = "completed";
+      
+      const verificationMessages = [];
+      if (mcpAnalysis.verificationsNeeded.includes("SIM_SWAP")) {
+        verificationMessages.push(`SIM Swap: ${sim.recentSwap ? '⚠️ Detectado' : '✅ OK'}`);
+      }
+      if (mcpAnalysis.verificationsNeeded.includes("KYC")) {
+        verificationMessages.push(`KYC: ${kyc.match ? '✅ OK' : '⚠️ No coincide'}`);
+      }
+      
       steps[2].result = {
         simSwap: sim.recentSwap,
         kycMatch: kyc.match,
-        executedVerifications: mcpAnalysis.verificationsNeeded
+        executedVerifications: mcpAnalysis.verificationsNeeded,
+        message: verificationMessages.join(' | ')
       };
       
     } else {
