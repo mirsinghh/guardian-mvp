@@ -18,6 +18,25 @@ import {
   MapPin
 } from "lucide-react";
 
+const SIM_USER_DETAILS = {
+  simNumber: "640033282",
+  idDocument: "OJAZ00936",
+  name: "JOHN OPENTEST",
+  givenName: "JOHN",
+  familyName: "OPENTEST",
+  familyNameAtBirth: "",
+  address: "DEL CLUB DEPORTIVO 1 28223",
+  streetName: "DEL CLUB DEPORTIVO",
+  streetNumber: "1",
+  postalCode: "28223",
+  region: "MADRID",
+  locality: "POZUELO DE ALARCON",
+  country: "ES",
+  birthdate: "1976-04-16",
+  email: "roberto.garcia@masorange.es",
+  gender: "MALE"
+};
+
 function App() {
   const [mode, setMode] = useState("user");
   const [result, setResult] = useState(null);
@@ -213,6 +232,20 @@ function App() {
                 <p className="text-sm text-gray-500 text-center max-w-lg font-light">
                   We'll verify your identity using telecom signals before allowing the action.
                 </p>
+                {/* SIM DETAILS JSON */}
+                <div className="mt-10 flex justify-center">
+                  <div className="w-full max-w-xl bg-white border border-gray-200 rounded-3xl shadow-md p-7">
+                    
+                    <p className="text-sm font-semibold text-gray-600 mb-4 uppercase tracking-wider text-center">
+                      SIM Card Details (Demo)
+                    </p>
+
+                    <pre className="text-sm text-gray-800 overflow-x-auto leading-relaxed">
+                      {JSON.stringify(SIM_USER_DETAILS, null, 2)}
+                    </pre>
+
+                  </div>
+                </div>
               </>
             ) : (
               <div className="w-full max-w-2xl">
