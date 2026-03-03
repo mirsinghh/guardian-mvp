@@ -592,11 +592,61 @@ function App() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
                         </div>
+
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-700 mb-2">
                             AI Explanation {result.mcpUsed && <span className="text-xs text-purple-600">(MCP Enhanced)</span>}
                           </p>
-                          <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
+
+                          {(() => {
+                            const raw = String(result.explanation ?? "");
+                            const cleaned = raw
+                              .replace(/\r\n/g, "\n")
+                              .replace(/\n{3,}/g, "\n\n")
+                              .trim();
+
+                            const blocks = cleaned
+                              .split("\n\n")
+                              .map((b) => b.trim())
+                              .filter(Boolean);
+
+                            const isBullet = (line) => /^(\*|-|•|\d+[.)])\s+/.test(line.trim());
+
+                            return (
+                              <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                                {blocks.map((block, idx) => {
+                                  const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+                                  const looksLikeList = lines.length > 1 && lines.every(isBullet);
+
+                                  if (looksLikeList) {
+                                    return (
+                                      <ul key={idx} className="list-disc pl-5 space-y-1">
+                                        {lines.map((line, i) => (
+                                          <li key={i}>
+                                            <span
+                                              dangerouslySetInnerHTML={{
+                                                __html: line
+                                                  .replace(/^(\*|-|•|\d+[.)])\s+/, "")
+                                                  .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
+                                              }}
+                                            />
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    );
+                                  }
+
+                                  return (<p 
+                                  key={idx}
+                                  className="whitespace-pre-line"
+                                  dangerouslySetInnerHTML={{
+                                    __html: block.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
+                                  }}
+                                  />);
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
@@ -900,21 +950,70 @@ function App() {
                       </div>
                     </div>
                   </div>
-
-                  {/* AI Explanation */}
+                  {/* AI EXPLANATION */}
                   {result.explanation && (
-                    <div className="p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
+                    <div className="mb-6 p-5 bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl border border-purple-200">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-full bg-purple-200 flex items-center justify-center flex-shrink-0">
                           <svg className="w-5 h-5 text-purple-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                           </svg>
                         </div>
+
                         <div className="flex-1">
                           <p className="text-sm font-medium text-gray-700 mb-2">
                             AI Explanation {result.mcpUsed && <span className="text-xs text-purple-600">(MCP Enhanced)</span>}
                           </p>
-                          <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
+
+                          {(() => {
+                            const raw = String(result.explanation ?? "");
+                            const cleaned = raw
+                              .replace(/\r\n/g, "\n")
+                              .replace(/\n{3,}/g, "\n\n")
+                              .trim();
+
+                            const blocks = cleaned
+                              .split("\n\n")
+                              .map((b) => b.trim())
+                              .filter(Boolean);
+
+                            const isBullet = (line) => /^(\*|-|•|\d+[.)])\s+/.test(line.trim());
+
+                            return (
+                              <div className="text-sm text-gray-700 leading-relaxed space-y-2">
+                                {blocks.map((block, idx) => {
+                                  const lines = block.split("\n").map((l) => l.trim()).filter(Boolean);
+                                  const looksLikeList = lines.length > 1 && lines.every(isBullet);
+
+                                  if (looksLikeList) {
+                                    return (
+                                      <ul key={idx} className="list-disc pl-5 space-y-1">
+                                        {lines.map((line, i) => (
+                                          <li key={i}>
+                                            <span
+                                              dangerouslySetInnerHTML={{
+                                                __html: line
+                                                  .replace(/^(\*|-|•|\d+[.)])\s+/, "")
+                                                  .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
+                                              }}
+                                            />
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    );
+                                  }
+
+                                  return (<p 
+                                  key={idx}
+                                  className="whitespace-pre-line"
+                                  dangerouslySetInnerHTML={{
+                                    __html: block.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>"),
+                                  }}
+                                  />);
+                                })}
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>
