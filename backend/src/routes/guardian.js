@@ -2,7 +2,7 @@ import pool from "../db.js";
 import { v4 as uuidv4 } from "uuid";
 import express from "express";
 import { calculateTrustScore } from "../services/trustScoreService.js";
-import { generateExplanation } from "../services/aiService.js";
+import { generateExplanation, generateRandomAction, analyzeAndDecide } from "../services/aiService.js";
 import { runMcpTool } from "../mcpBridge.js";
 import { checkSimSwap, checkKYC } from "../services/nokiaService.js";
 import { TEST_USER, DEMO_SCENARIOS, THRESHOLDS } from "../constants.js";
@@ -433,6 +433,289 @@ router.get("/history", async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to fetch history" });
+  }
+});
+
+/* ===============================
+   GENERATE RANDOM ACTION
+   Genera contenido contextual aleatorio para simulaciones
+================================ */
+router.post("/generate-action", async (req, res) => {
+  try {
+    const { actionType, isFraudulent } = req.body;
+    
+    if (!actionType) {
+      return res.status(400).json({ error: "actionType es requerido" });
+    }
+    
+    console.log(`\n🎲 Generando acción aleatoria: ${actionType} (fraude: ${isFraudulent})`);
+    
+    const randomAction = generateRandomAction(actionType, isFraudulent);
+    
+    console.log(`   ✅ Contenido generado: ${randomAction.content.substring(0, 60)}...`);
+    
+    res.json({
+      success: true,
+      action: randomAction
+    });
+    
+  } catch (error) {
+    console.error("❌ Error generando acción:", error);
+    res.status(500).json({ error: "Failed to generate action" });
+  }
+});
+
+/* ===============================
+   MCP INTELLIGENT CHECK
+   Flujo completo con MCP como motor de decisión:
+   1. Generar acción contextual aleatoria
+   2. MCP analiza contenido y decide verificaciones
+   3. Ejecutar APIs según decisión MCP
+   4. Calcular Trust Score
+   5. Retornar pasos para visualización UI
+================================ */
+router.post("/mcp-check", async (req, res) => {
+  try {
+    const { phone, firstName, lastName, birthDate, actionType, isFraudulent } = req.body;
+    
+    if (!actionType) {
+      return res.status(400).json({ error: "actionType es requerido" });
+    }
+    
+    console.log(`\n🤖 MCP CHECK iniciado para: ${phone}`);
+    console.log(`   📌 Tipo de acción: ${actionType} (fraude esperado: ${isFraudulent})`);
+    
+    const steps = [];
+    const timestamp = new Date().toISOString();
+    
+    // ===== PASO 1: GENERAR ACCIÓN ALEATORIA =====
+    steps.push({
+      step: 1,
+      name: "Generando contenido contextual",
+      status: "in-progress",
+      timestamp: new Date().toISOString()
+    });
+    
+    const randomAction = generateRandomAction(actionType, isFraudulent);
+    
+    steps[0].status = "completed";
+    steps[0].result = {
+      content: randomAction.content,
+      type: randomAction.actionType,
+      expectedFraud: randomAction.isFraudulent
+    };
+    
+    console.log(`   ✅ Contenido generado: "${randomAction.content.substring(0, 80)}..."`);
+    
+    // ===== PASO 2: ANÁLISIS MCP =====
+    steps.push({
+      step: 2,
+      name: "MCP analizando contenido",
+      status: "in-progress",
+      timestamp: new Date().toISOString()
+    });
+    
+    const mcpAnalysis = analyzeAndDecide(randomAction);
+    
+    steps[1].status = "completed";
+    steps[1].result = {
+      riskLevel: mcpAnalysis.riskLevel,
+      indicators: mcpAnalysis.riskIndicators,
+      reasoning: mcpAnalysis.reasoning,
+      verificationsNeeded: mcpAnalysis.verificationsNeeded
+    };
+    
+    console.log(`   🔍 MCP Análisis: ${mcpAnalysis.analysis}`);
+    console.log(`   📊 Indicadores: ${mcpAnalysis.riskIndicators.join(", ") || "Ninguno"}`);
+    console.log(`   🔐 Verificaciones necesarias: ${mcpAnalysis.verificationsNeeded.join(", ") || "Ninguna"}`);
+    
+    // ===== PASO 3: EJECUTAR VERIFICACIONES SEGÚN DECISIÓN MCP =====
+    let sim = { recentSwap: false, apiSuccess: false, isDemo: true };
+    let kyc = { match: true, apiSuccess: false, isDemo: true };
+    
+    if (mcpAnalysis.verificationsNeeded.length > 0) {
+      steps.push({
+        step: 3,
+        name: `Ejecutando verificaciones: ${mcpAnalysis.verificationsNeeded.join(", ")}`,
+        status: "in-progress",
+        timestamp: new Date().toISOString()
+      });
+      
+      const verificationPromises = [];
+      
+      if (mcpAnalysis.verificationsNeeded.includes("SIM_SWAP")) {
+        verificationPromises.push(
+          checkSimSwap(phone).then(result => ({ type: "SIM_SWAP", result }))
+        );
+      }
+      
+      if (mcpAnalysis.verificationsNeeded.includes("KYC")) {
+        verificationPromises.push(
+          checkKYC(phone, { firstName, lastName, birthDate }).then(result => ({ type: "KYC", result }))
+        );
+      }
+      
+      const verificationResults = await Promise.all(verificationPromises);
+      
+      // Procesar resultados
+      verificationResults.forEach(({ type, result }) => {
+        if (type === "SIM_SWAP") {
+          sim = result;
+          console.log(`   ${sim.recentSwap ? "⚠️" : "✅"} SIM Swap: ${sim.recentSwap ? "DETECTADO" : "OK"}`);
+        } else if (type === "KYC") {
+          kyc = result;
+          console.log(`   ${kyc.match ? "✅" : "⚠️"} KYC Match: ${kyc.match ? "OK" : "NO COINCIDE"}`);
+        }
+      });
+      
+      steps[2].status = "completed";
+      steps[2].result = {
+        simSwap: sim.recentSwap,
+        kycMatch: kyc.match,
+        executedVerifications: mcpAnalysis.verificationsNeeded
+      };
+      
+    } else {
+      steps.push({
+        step: 3,
+        name: "Sin verificaciones necesarias",
+        status: "completed",
+        timestamp: new Date().toISOString(),
+        result: {
+          message: "MCP determinó que el contenido es de bajo riesgo",
+          skippedVerifications: true
+        }
+      });
+      
+      console.log(`   ℹ️ Sin verificaciones necesarias (bajo riesgo)`);
+    }
+    
+    // ===== PASO 4: CALCULAR TRUST SCORE =====
+    steps.push({
+      step: 4,
+      name: "Calculando Trust Score",
+      status: "in-progress",
+      timestamp: new Date().toISOString()
+    });
+    
+    const { score, status, riskFactors, actionAllowed } = calculateTrustScore({
+      simSwap: sim.recentSwap,
+      kycMatch: kyc.match,
+    });
+    
+    steps[3].status = "completed";
+    steps[3].result = {
+      score,
+      status,
+      riskFactors,
+      actionAllowed
+    };
+    
+    console.log(`   📊 Trust Score: ${score}/100 → ${status}`);
+    
+    // ===== PASO 5: GENERAR EXPLICACIÓN SI ES NECESARIO =====
+    let explanation = "";
+    
+    if (score < 75) {
+      steps.push({
+        step: 5,
+        name: "Generando explicación AI",
+        status: "in-progress",
+        timestamp: new Date().toISOString()
+      });
+      
+      explanation = await generateExplanation({
+        simSwap: sim.recentSwap,
+        kycMatch: kyc.match,
+        score,
+        status,
+        riskFactors,
+        context: randomAction.content,
+        actionType: actionType
+      });
+      
+      steps[4].status = "completed";
+      steps[4].result = {
+        explanationGenerated: true,
+        length: explanation.length
+      };
+      
+      console.log(`   💬 Explicación generada (${explanation.length} chars)`);
+    }
+    
+    // ===== GUARDAR EN BD =====
+    const id = uuidv4();
+    await pool.query(
+      `INSERT INTO risk_checks 
+       (id, sim_swap_result, kyc_result, trust_score, status, risk_factors)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [id, sim.recentSwap, kyc.match, score, status, JSON.stringify(riskFactors)]
+    );
+    
+    console.log(`   ✅ MCP Check completado\n`);
+    
+    // ===== RESPONSE =====
+    res.json({
+      success: true,
+      mcpMode: true,
+      
+      // Acción generada
+      action: {
+        content: randomAction.content,
+        type: randomAction.actionType,
+        isFraudulent: randomAction.isFraudulent,
+        details: randomAction.details
+      },
+      
+      // Análisis MCP
+      mcpAnalysis: {
+        riskLevel: mcpAnalysis.riskLevel,
+        riskIndicators: mcpAnalysis.riskIndicators,
+        reasoning: mcpAnalysis.reasoning,
+        verificationsNeeded: mcpAnalysis.verificationsNeeded
+      },
+      
+      // Resultados verificaciones
+      verifications: {
+        sim: {
+          recentSwap: sim.recentSwap,
+          apiSuccess: sim.apiSuccess,
+          isDemo: sim.isDemo
+        },
+        kyc: {
+          match: kyc.match,
+          apiSuccess: kyc.apiSuccess,
+          isDemo: kyc.isDemo
+        }
+      },
+      
+      // Trust Score final
+      trustScore: score,
+      status,
+      riskFactors,
+      actionAllowed,
+      explanation,
+      
+      // Pasos para UI
+      steps,
+      
+      // Metadata
+      metadata: {
+        mode: "MCP_INTELLIGENT",
+        timestamp,
+        totalSteps: steps.length,
+        verificationsExecuted: mcpAnalysis.verificationsNeeded.length,
+        checkId: id
+      }
+    });
+    
+  } catch (error) {
+    console.error("❌ MCP Check failed:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "MCP Check failed",
+      message: error.message 
+    });
   }
 });
 

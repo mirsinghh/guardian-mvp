@@ -45,6 +45,12 @@ function App() {
   const [currentPage, setCurrentPage] = useState(1);
   const [actionType, setActionType] = useState(null);
   const itemsPerPage = 10;
+  
+  // MCP States
+  const [simulationMode, setSimulationMode] = useState("safe"); // "safe" o "fraudulent"
+  const [mcpSteps, setMcpSteps] = useState([]);
+  const [mcpCollapsed, setMcpCollapsed] = useState(false);
+  const [mcpAction, setMcpAction] = useState(null);
 
   const checkGuardian = async (action = null) => {
     if (action) setActionType(action);
@@ -69,6 +75,51 @@ function App() {
   const resetCheck = () => {
     setResult(null);
     setActionType(null);
+    setMcpSteps([]);
+    setMcpAction(null);
+    setMcpCollapsed(false);
+  };
+  
+  // MCP Intelligent Check
+  const checkGuardianWithMCP = async (action) => {
+    setActionType(action);
+    setLoading(true);
+    setMcpSteps([]);
+    setMcpAction(null);
+    setMcpCollapsed(false);
+    
+    try {
+      const isFraudulent = simulationMode === "fraudulent";
+      
+      const res = await axios.post("http://localhost:8080/guardian/mcp-check", {
+        phone: SIM_USER_DETAILS.simNumber,
+        firstName: SIM_USER_DETAILS.givenName,
+        lastName: SIM_USER_DETAILS.familyName,
+        birthDate: SIM_USER_DETAILS.birthdate,
+        actionType: action,
+        isFraudulent: isFraudulent
+      });
+      
+      // Simular pasos progresivos con delay para visualización
+      const steps = res.data.steps || [];
+      for (let i = 0; i < steps.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 200)); // 200ms entre pasos
+        setMcpSteps(prev => [...prev, steps[i]]);
+      }
+      
+      // Esperar un poco antes de colapsar
+      await new Promise(resolve => setTimeout(resolve, 500));
+      setMcpCollapsed(true);
+      
+      // Guardar acción y resultado
+      setMcpAction(res.data.action);
+      setResult(res.data);
+      
+    } catch (error) {
+      console.error("❌ Error en checkGuardianWithMCP:", error);
+      alert(`Backend error: ${error.response?.data?.message || error.message || "Connection failed"}`);
+    }
+    setLoading(false);
   };
 
   const runSimulation = async (scenario) => {
@@ -194,6 +245,91 @@ function App() {
                 <p className="text-gray-600 mb-8 text-lg md:text-xl max-w-2xl leading-relaxed text-center font-light">
                   Protect our elderlys before performing sensitive actions. Select what you want to do:
                 </p>
+                
+                {/* SIMULATION MODE TOGGLE - PROFESSIONAL VERSION */}
+                <div className="mb-8 w-full max-w-2xl">
+                  <div className="bg-gradient-to-br from-white to-gray-50 rounded-2xl border border-gray-200 shadow-lg p-6">
+                    <div className="flex items-center justify-center gap-3 mb-4">
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                      <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-widest">
+                        Scenario Simulation
+                      </h3>
+                      <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
+                    </div>
+                    
+                    {/* Segmented Control */}
+                    <div className="relative bg-gray-100 rounded-xl p-1.5 flex gap-1.5 shadow-inner">
+                      <button
+                        onClick={() => setSimulationMode("safe")}
+                        className={`relative flex-1 px-6 py-3.5 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                          simulationMode === "safe"
+                            ? "bg-white text-green-700 shadow-md"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <ShieldCheck className={`w-4 h-4 ${
+                            simulationMode === "safe" ? "text-green-600" : "text-gray-400"
+                          }`} />
+                          <span>Legitimate</span>
+                        </div>
+                      </button>
+                      
+                      <button
+                        onClick={() => setSimulationMode("fraudulent")}
+                        className={`relative flex-1 px-6 py-3.5 rounded-lg font-semibold text-sm transition-all duration-300 ${
+                          simulationMode === "fraudulent"
+                            ? "bg-white text-red-700 shadow-md"
+                            : "text-gray-600 hover:text-gray-900"
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <ShieldAlert className={`w-4 h-4 ${
+                            simulationMode === "fraudulent" ? "text-red-600" : "text-gray-400"
+                          }`} />
+                          <span>Fraudulent</span>
+                        </div>
+                      </button>
+                    </div>
+                    
+                    {/* Description with Animation */}
+                    <div className="mt-4 overflow-hidden">
+                      <div className={`transition-all duration-300 ${
+                        simulationMode === "safe" 
+                          ? "opacity-100 translate-y-0" 
+                          : "opacity-0 translate-y-2"
+                      }`}>
+                        {simulationMode === "safe" && (
+                          <div className="flex items-center justify-center gap-2 text-sm">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-green-50 border border-green-200 rounded-lg">
+                              <CheckCircle2 className="w-4 h-4 text-green-600" />
+                              <span className="text-green-800 font-medium">
+                                Testing valid user scenarios
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      
+                      <div className={`transition-all duration-300 ${
+                        simulationMode === "fraudulent" 
+                          ? "opacity-100 translate-y-0" 
+                          : "opacity-0 -translate-y-2"
+                      }`}>
+                        {simulationMode === "fraudulent" && (
+                          <div className="flex items-center justify-center gap-2 text-sm">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
+                              <AlertOctagon className="w-4 h-4 text-red-600" />
+                              <span className="text-red-800 font-medium">
+                                Testing fraud detection capabilities
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
                 {/* SENSITIVE ACTIONS GRID */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-3xl mb-6">
@@ -202,7 +338,7 @@ function App() {
                     return (
                       <button
                         key={action.id}
-                        onClick={() => checkGuardian(action.id)}
+                        onClick={() => checkGuardianWithMCP(action.id)}
                         disabled={loading}
                         className="group relative p-6 rounded-2xl border-2 border-gray-200 bg-white hover:border-blue-500 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed text-left"
                       >
@@ -264,6 +400,93 @@ function App() {
                         </>
                       );
                     })()}
+                  </div>
+                )}
+                
+                {/* MCP GENERATED ACTION */}
+                {mcpAction && (
+                  <div className="mb-6 p-5 rounded-xl bg-white border-2 border-gray-300 shadow-sm">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        mcpAction.isFraudulent 
+                          ? "bg-red-100 text-red-700" 
+                          : "bg-green-100 text-green-700"
+                      }`}>
+                        {mcpAction.isFraudulent ? "⚠ FRAUDULENT SCENARIO" : "✓ SAFE SCENARIO"}
+                      </div>
+                    </div>
+                    <p className="text-sm font-medium text-gray-700 mb-1">Generated Content:</p>
+                    <p className="text-gray-900 leading-relaxed">{mcpAction.content}</p>
+                  </div>
+                )}
+                
+                {/* MCP PROCESS STEPS */}
+                {mcpSteps.length > 0 && (
+                  <div className="mb-6 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl shadow-md overflow-hidden">
+                    <button
+                      onClick={() => setMcpCollapsed(!mcpCollapsed)}
+                      className="w-full p-4 flex items-center justify-between hover:bg-blue-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></div>
+                        <span className="font-semibold text-blue-900">
+                          MCP Intelligent Process ({mcpSteps.length} steps)
+                        </span>
+                      </div>
+                      <span className="text-blue-600">
+                        {mcpCollapsed ? "▼" : "▲"}
+                      </span>
+                    </button>
+                    
+                    {!mcpCollapsed && (
+                      <div className="p-4 pt-0 space-y-3">
+                        {mcpSteps.map((step, index) => (
+                          <div 
+                            key={index}
+                            className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm animate-fadeIn"
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm">
+                                {step.step}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-2">
+                                  <p className="font-semibold text-gray-900">{step.name}</p>
+                                  {step.status === "completed" && (
+                                    <span className="text-green-600 text-sm">✓</span>
+                                  )}
+                                </div>
+                                {step.result && (
+                                  <div className="text-sm text-gray-600 bg-gray-50 rounded p-2 mt-2">
+                                    {step.result.message && (
+                                      <p className="italic">{step.result.message}</p>
+                                    )}
+                                    {step.result.verificationsNeeded && (
+                                      <p><strong>Verifications:</strong> {step.result.verificationsNeeded.join(", ")}</p>
+                                    )}
+                                    {step.result.riskLevel && (
+                                      <p><strong>Risk Level:</strong> <span className={`font-semibold ${
+                                        step.result.riskLevel === "high" ? "text-red-600" :
+                                        step.result.riskLevel === "medium" ? "text-amber-600" : "text-green-600"
+                                      }`}>{step.result.riskLevel.toUpperCase()}</span></p>
+                                    )}
+                                    {step.result.indicators && step.result.indicators.length > 0 && (
+                                      <p><strong>Indicators:</strong> {step.result.indicators.join(", ")}</p>
+                                    )}
+                                    {step.result.reasoning && (
+                                      <p className="mt-1 italic text-gray-700">{step.result.reasoning}</p>
+                                    )}
+                                    {step.result.score !== undefined && (
+                                      <p><strong>Trust Score:</strong> {step.result.score}/100 → {step.result.status}</p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 
