@@ -15,10 +15,10 @@ const pool = new Pool(USE_LOCAL_DB ? {
   port: 5432,
 } : {
   // Configuración GOOGLE CLOUD
-  user: "postgres",
-  host: "34.175.87.27",
-  database: "postgres",
-  password: "test",
+  user: "",
+  host: "",
+  database: "",
+  password: "",
   port: 5432,
   ssl: {
     rejectUnauthorized: false
