@@ -1,9 +1,21 @@
-export function calculateTrustScore({ simSwap, kycMatch, numberVerified }) {
-  let score = 100;
+const WEIGHTS = {
+  SIM_SWAP: 60,
+  KYC_MISMATCH: 30,
+};
 
-  if (simSwap) score -= 60;
-  if (!kycMatch) score -= 30;
-  if (!numberVerified) score -= 25;
+export function calculateTrustScore({ simSwap, kycMatch }) {
+  let score = 100;
+  const riskFactors = [];
+
+  if (simSwap === true) {
+    score -= WEIGHTS.SIM_SWAP;
+    riskFactors.push("RECENT_SIM_SWAP");
+  }
+
+  if (kycMatch === false) {
+    score -= WEIGHTS.KYC_MISMATCH;
+    riskFactors.push("KYC_MISMATCH");
+  }
 
   if (score < 0) score = 0;
 
@@ -11,5 +23,7 @@ export function calculateTrustScore({ simSwap, kycMatch, numberVerified }) {
   if (score < 50) status = "PROTECTION_MODE";
   else if (score < 75) status = "WARNING";
 
-  return { score, status };
+  const actionAllowed = status !== "PROTECTION_MODE";
+
+  return { score, status, riskFactors, actionAllowed };
 }

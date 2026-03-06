@@ -1,0 +1,31 @@
+{
+  "content": "Final warning! Confirm your credit card details immediately",
+  "isFraudulent": true,
+  "actionType": "sms",
+  "details": {"source": "studio_results", "originalFlag": "0"}
+}
+
+
+
+{
+  "content": "Su suscripción ha sido renovada correctamente",
+  "isFraudulent": false,
+  "actionType": "sms",
+  "details": {"source": "studio_results", "originalFlag": "1"}
+}
+
+
+{
+  "content": "Transferencia a: Recuperación Cuenta | Cantidad: 500€",
+  "isFraudulent": true,
+  "actionType": "transfer"
+}
+
+{
+  "content": "Cambio de contraseña en: www.bancosantander.es | Motivo: Cambio programado",
+  "isFraudulent": false,
+  "actionType": "password"
+}
+
+
+curl.exe -X POST http://localhost:8080/guardian/generate-action -H "Content-Type: application/json" -d '{\"actionType\": \"transfer\", \"isFraudulent\": true}' ; curl.exe -X POST http://localhost:8080/guardian/generate-action -H "Content-Type: application/json" -d '{\"actionType\": \"password\", \"isFraudulent\": false}'
